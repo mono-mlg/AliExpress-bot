@@ -16,7 +16,7 @@ ALI_API_URL    = "https://api-sg.aliexpress.com/sync"
 def _sign(params, secret):
     sorted_params = sorted(params.items())
     base = secret + "".join(k + str(v) for k, v in sorted_params) + secret
-    return hmac.new(secret.encode(), base.encode(), hashlib.sha256).hexdigest().upper()
+    return hashlib.sha256(base.encode("utf-8")).hexdigest().upper()
 
 def ali_request(method, extra):
     params = {"method": method, "app_key": APP_KEY, "timestamp": str(int(time.time() * 1000)), "sign_method": "sha256", "format": "json", "v": "2.0"}
