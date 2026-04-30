@@ -1,4 +1,4 @@
-import os, json, time, hashlib, requests
+import os, json, time, hashlib, re, requests
 from datetime import datetime
 from pathlib import Path
 
@@ -13,11 +13,19 @@ TELEGRAM_CHAT  = os.environ["TELEGRAM_CHAT_ID"]
 HISTORIAL_FILE = "historial.json"
 MAX_POSTS      = 3
 MIN_DESCUENTO  = 30
+MIN_PRECIO     = 5.0
 CUPON_FIJO     = os.environ.get("CUPON_FIJO", "")
 ALI_API_URL    = "https://api-sg.aliexpress.com/sync"
 
+# Categorias de busqueda — variadas para conseguir mejores ofertas
+CATEGORIAS = [
+    "smartwatch", "wireless earbuds", "power bank", "led strip",
+    "phone case", "laptop stand", "air fryer", "robot vacuum",
+    "bluetooth speaker", "mechanical keyboard"
+]
+
 # ─────────────────────────────────────────
-#  FIRMA MD5 (metodo oficial AliExpress)
+#  FIRMA MD5
 # ─────────────────────────────────────────
 def _sign(params, secret):
     sorted_params = sorted(params.items())
@@ -40,55 +48,39 @@ def ali_request(method, extra):
     return r.json()
 
 # ─────────────────────────────────────────
+#  GENERAR ENLACE DE AFILIADO CORTO
+# ─────────────────────────────────────────
+def generar_link_afiliado(url_original):
+    """Convierte cualquier URL de AliExpress en enlace de afiliado verificado."""
+    try:
+        data = ali_request("aliexpress.affiliate.link.generate", {
+            "tracking_id":  TRACKING_ID,
+            "promotion_link_type": "0",
+            "source_values": url_original,
+        })
+        link = (data["aliexpress_affiliate_link_generate_response"]
+                    ["resp_result"]["result"]["promotion_links"]["promotion_link"][0]
+                    ["promotion_link"])
+        return link
+    except Exception as e:
+        print("    Advertencia — no se pudo acortar el link: " + str(e))
+        return url_original
+
+# ─────────────────────────────────────────
+#  DEDUPLICACION POR TITULO NORMALIZADO
+# ─────────────────────────────────────────
+def normalizar_titulo(titulo):
+    """Extrae las primeras 5 palabras significativas del titulo para deduplicar."""
+    titulo = titulo.lower()
+    titulo = re.sub(r"[^a-z0-9 ]", " ", titulo)
+    palabras = [p for p in titulo.split() if len(p) > 2]
+    return " ".join(palabras[:5])
+
+# ─────────────────────────────────────────
 #  BUSCAR OFERTAS
 # ─────────────────────────────────────────
-#def buscar_ofertas():
-#    print(">>> Llamando a la API de AliExpress...")
-#    data = ali_request("aliexpress.affiliate.hotproduct.query", {
-#        "tracking_id": TRACKING_ID,
-#        "page_no":     "1",
-#        "page_size":   "50",
-#        "sort":        "LAST_VOLUME_DESC",
-#        "fields":      "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
-#    })
-#    print(">>> RESPUESTA API: " + json.dumps(data, ensure_ascii=False)[:500])
-#
-#    try:
-#        productos = data["aliexpress_affiliate_hotproduct_query_response"]["resp_result"]["result"]["products"]["product"]
-#        print(">>> " + str(len(productos)) + " productos recibidos de la API")
-#    except (KeyError, TypeError) as e:
-#        print(">>> ERROR al leer productos: " + str(e))
-#        return []
-#
-#    ofertas = []
-#    for p in productos:
-#        try:
-#            precio_orig = float(str(p.get("original_price", "0")).replace(",", "."))
-#            precio_sale = float(str(p.get("sale_price", "0")).replace(",", "."))
-#            if precio_orig <= 0 or precio_sale <= 0:
-#                continue
-#            descuento = round((1 - precio_sale / precio_orig) * 100)
-#            print("  " + p.get("product_title", "")[:50] + " | " + str(precio_orig) + " -> " + str(precio_sale) + " (-" + str(descuento) + "%)")
-#            if descuento < MIN_DESCUENTO:
-#                continue
-#            ofertas.append({
-#                "id":          str(p["product_id"]),
-#                "titulo":      p["product_title"][:80],
- #               "imagen":      p["product_main_image_url"],
-#                "precio_orig": precio_orig,
- #               "precio_sale": precio_sale,
-#                "descuento":   descuento,
-#                "link":        p["promotion_link"],
-#            })
-#        except Exception as e:
-# #           print("  ERROR procesando producto: " + str(e))
-#
-#    print(">>> " + str(len(ofertas)) + " productos con descuento >= " + str(MIN_DESCUENTO) + "%")
-#    return ofertas
-
 def buscar_ofertas():
-    CATEGORIAS = ["phone", "laptop", "headphones", "smartwatch", "tablet"]
-    productos_totales = []
+    productos_raw = []
 
     for keyword in CATEGORIAS:
         print(">>> Buscando: " + keyword)
@@ -98,49 +90,51 @@ def buscar_ofertas():
                 "keywords":    keyword,
                 "page_no":     "1",
                 "page_size":   "20",
-                "sort":        "SALE_PRICE_ASC",
+                "sort":        "LAST_VOLUME_DESC",
+                "min_sale_price": str(int(MIN_PRECIO * 100)),  # en centavos
                 "fields":      "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
             })
-            print(">>> RESPUESTA: " + json.dumps(data, ensure_ascii=False)[:300])
-            prods = data["aliexpress_affiliate_product_query_response"]["resp_result"]["result"]["products"]["product"]
-            productos_totales.extend(prods)
+            prods = (data["aliexpress_affiliate_product_query_response"]
+                        ["resp_result"]["result"]["products"]["product"])
             print("    " + str(len(prods)) + " productos encontrados")
+            productos_raw.extend(prods)
         except (KeyError, TypeError) as e:
             print("    Sin resultados: " + str(e))
         time.sleep(1)
 
-    ofertas = []
-    vistos = set()
-    for p in productos_totales:
+    # Deduplicar por titulo normalizado, quedandonos con el de mayor descuento
+    mejores = {}
+    for p in productos_raw:
         try:
-            pid = str(p["product_id"])
-            if pid in vistos:
-                continue
-            vistos.add(pid)
             precio_orig = float(str(p.get("original_price", "0")).replace(",", "."))
             precio_sale = float(str(p.get("sale_price", "0")).replace(",", "."))
-            if precio_orig <= 0 or precio_sale <= 0:
+            if precio_orig < MIN_PRECIO or precio_sale <= 0:
                 continue
             descuento = round((1 - precio_sale / precio_orig) * 100)
-            print("  " + p.get("product_title", "")[:50] + " | " + str(precio_orig) + " -> " + str(precio_sale) + " (-" + str(descuento) + "%)")
             if descuento < MIN_DESCUENTO:
                 continue
-            ofertas.append({
-                "id":          pid,
-                "titulo":      p["product_title"][:80],
-                "imagen":      p["product_main_image_url"],
-                "precio_orig": precio_orig,
-                "precio_sale": precio_sale,
-                "descuento":   descuento,
-                "link":        p["promotion_link"],
-            })
+            clave = normalizar_titulo(p.get("product_title", ""))
+            if clave not in mejores or descuento > mejores[clave]["descuento"]:
+                mejores[clave] = {
+                    "id":          clave,           # usamos clave normalizada como ID
+                    "product_id":  str(p["product_id"]),
+                    "titulo":      p["product_title"][:80],
+                    "imagen":      p["product_main_image_url"],
+                    "precio_orig": precio_orig,
+                    "precio_sale": precio_sale,
+                    "descuento":   descuento,
+                    "link_orig":   p["promotion_link"],
+                }
         except Exception as e:
-            print("  ERROR: " + str(e))
+            print("  ERROR procesando: " + str(e))
 
-    print(">>> " + str(len(ofertas)) + " productos con descuento >= " + str(MIN_DESCUENTO) + "%")
+    ofertas = list(mejores.values())
+    ofertas.sort(key=lambda x: x["descuento"], reverse=True)
+    print(">>> " + str(len(ofertas)) + " ofertas unicas con descuento >= " + str(MIN_DESCUENTO) + "% y precio >= " + str(MIN_PRECIO) + "EUR")
     return ofertas
+
 # ─────────────────────────────────────────
-#  HISTORIAL
+#  HISTORIAL (basado en titulo normalizado)
 # ─────────────────────────────────────────
 def cargar_historial():
     if Path(HISTORIAL_FILE).exists():
@@ -155,36 +149,38 @@ def guardar_historial(ids):
 # ─────────────────────────────────────────
 #  FORMATEAR MENSAJE TELEGRAM
 # ─────────────────────────────────────────
-def formatear_mensaje(p):
+def formatear_mensaje(p, link):
     linea_cupon = ""
     precio_final = p["precio_sale"]
     if CUPON_FIJO:
         precio_final = round(p["precio_sale"] * 0.95, 2)
         linea_cupon = "\n🏷️ *DESCUENTO EXTRA*\n"
         linea_cupon += "✂️ Cupon: `" + CUPON_FIJO + "`\n"
-        linea_cupon += "🔥💵 Precio FINAL con cupon: *" + str(precio_final) + "*\n"
+        linea_cupon += "🔥💵 Precio FINAL con cupon: *" + str(precio_final) + "€*\n"
 
     msg = "🔥 ‼️*BAJADA DE PRECIO*‼️ #Aliexpress\n\n"
     msg += "🌟 " + p["titulo"] + "\n\n"
-    msg += "❌ ~~PVP: " + str(p["precio_orig"]) + "~~\n"
-    msg += "✅ *Oferta: " + str(p["precio_sale"]) + "*  (-" + str(p["descuento"]) + "%)\n"
+    msg += "❌ ~~PVP: " + str(p["precio_orig"]) + "€~~\n"
+    msg += "✅ *Oferta: " + str(p["precio_sale"]) + "€*  (-" + str(p["descuento"]) + "%)\n"
     msg += linea_cupon + "\n"
-    msg += "🌍 [COMPRAR AQUI](" + p["link"] + ")\n\n"
+    msg += "🌍 [COMPRAR AQUI](" + link + ")\n\n"
     msg += "_Siguenos para mas ofertas diarias_ 🛒"
     return msg
 
 # ─────────────────────────────────────────
 #  ENVIAR A TELEGRAM
 # ─────────────────────────────────────────
-def enviar_telegram(p):
-    texto = formatear_mensaje(p)
-    print(">>> Enviando a Telegram: " + p["titulo"][:50])
+def enviar_telegram(p, link):
+    texto = formatear_mensaje(p, link)
+    print(">>> Enviando: " + p["titulo"][:50])
     r = requests.post(
         "https://api.telegram.org/bot" + TELEGRAM_TOKEN + "/sendPhoto",
         json={"chat_id": TELEGRAM_CHAT, "photo": p["imagen"], "caption": texto, "parse_mode": "Markdown"},
         timeout=15
     )
-    print("    Respuesta Telegram: " + str(r.status_code) + " " + r.text[:300])
+    print("    Telegram: " + str(r.status_code))
+    if r.status_code != 200:
+        print("    Error: " + r.text[:200])
 
 # ─────────────────────────────────────────
 #  MAIN
@@ -196,13 +192,16 @@ def main():
 
     ofertas = buscar_ofertas()
     nuevas = [o for o in ofertas if o["id"] not in historial]
-    print(">>> " + str(len(nuevas)) + " productos nuevos")
+    print(">>> " + str(len(nuevas)) + " ofertas nuevas disponibles")
 
     publicados = 0
     for p in nuevas:
         if publicados >= MAX_POSTS:
             break
-        enviar_telegram(p)
+        print(">>> Generando enlace de afiliado para: " + p["titulo"][:40])
+        link = generar_link_afiliado(p["link_orig"])
+        print("    Link: " + link[:80])
+        enviar_telegram(p, link)
         historial.add(p["id"])
         publicados += 1
         time.sleep(2)
