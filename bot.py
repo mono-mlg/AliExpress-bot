@@ -42,19 +42,60 @@ def ali_request(method, extra):
 # ─────────────────────────────────────────
 #  BUSCAR OFERTAS
 # ─────────────────────────────────────────
+#def buscar_ofertas():
+#    print(">>> Llamando a la API de AliExpress...")
+#    data = ali_request("aliexpress.affiliate.hotproduct.query", {
+#        "tracking_id": TRACKING_ID,
+#        "page_no":     "1",
+#        "page_size":   "50",
+#        "sort":        "LAST_VOLUME_DESC",
+#        "fields":      "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
+#    })
+#    print(">>> RESPUESTA API: " + json.dumps(data, ensure_ascii=False)[:500])
+#
+#    try:
+#        productos = data["aliexpress_affiliate_hotproduct_query_response"]["resp_result"]["result"]["products"]["product"]
+#        print(">>> " + str(len(productos)) + " productos recibidos de la API")
+#    except (KeyError, TypeError) as e:
+#        print(">>> ERROR al leer productos: " + str(e))
+#        return []
+#
+#    ofertas = []
+#    for p in productos:
+#        try:
+#            precio_orig = float(str(p.get("original_price", "0")).replace(",", "."))
+#            precio_sale = float(str(p.get("sale_price", "0")).replace(",", "."))
+#            if precio_orig <= 0 or precio_sale <= 0:
+#                continue
+#            descuento = round((1 - precio_sale / precio_orig) * 100)
+#            print("  " + p.get("product_title", "")[:50] + " | " + str(precio_orig) + " -> " + str(precio_sale) + " (-" + str(descuento) + "%)")
+#            if descuento < MIN_DESCUENTO:
+#                continue
+#            ofertas.append({
+#                "id":          str(p["product_id"]),
+#                "titulo":      p["product_title"][:80],
+ #               "imagen":      p["product_main_image_url"],
+#                "precio_orig": precio_orig,
+ #               "precio_sale": precio_sale,
+#                "descuento":   descuento,
+#                "link":        p["promotion_link"],
+#            })
+#        except Exception as e:
+# #           print("  ERROR procesando producto: " + str(e))
+#
+#    print(">>> " + str(len(ofertas)) + " productos con descuento >= " + str(MIN_DESCUENTO) + "%")
+#    return ofertas
+
 def buscar_ofertas():
     print(">>> Llamando a la API de AliExpress...")
-    data = ali_request("aliexpress.affiliate.hotproduct.query", {
+    data = ali_request("aliexpress.affiliate.featuredpromo.get", {
         "tracking_id": TRACKING_ID,
-        "page_no":     "1",
-        "page_size":   "50",
-        "sort":        "LAST_VOLUME_DESC",
-        "fields":      "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
+        "fields": "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
     })
     print(">>> RESPUESTA API: " + json.dumps(data, ensure_ascii=False)[:500])
 
     try:
-        productos = data["aliexpress_affiliate_hotproduct_query_response"]["resp_result"]["result"]["products"]["product"]
+        productos = data["aliexpress_affiliate_featuredpromo_get_response"]["resp_result"]["result"]["products"]["product"]
         print(">>> " + str(len(productos)) + " productos recibidos de la API")
     except (KeyError, TypeError) as e:
         print(">>> ERROR al leer productos: " + str(e))
