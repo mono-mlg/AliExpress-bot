@@ -87,7 +87,6 @@ def ali_request(method, extra):
 #    return ofertas
 
 def buscar_ofertas():
-def buscar_ofertas():
     CATEGORIAS = ["phone", "laptop", "headphones", "smartwatch", "tablet"]
     productos_totales = []
 
