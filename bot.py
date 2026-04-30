@@ -87,16 +87,32 @@ def ali_request(method, extra):
 #    return ofertas
 
 def buscar_ofertas():
-    print(">>> Llamando a la API de AliExpress...")
+    print(">>> Obteniendo campanas promocionales...")
     data = ali_request("aliexpress.affiliate.featuredpromo.get", {
         "tracking_id": TRACKING_ID,
-        "fields": "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
     })
-    print(">>> RESPUESTA API: " + json.dumps(data, ensure_ascii=False)[:500])
 
     try:
-        productos = data["aliexpress_affiliate_featuredpromo_get_response"]["resp_result"]["result"]["products"]["product"]
-        print(">>> " + str(len(productos)) + " productos recibidos de la API")
+        promos = data["aliexpress_affiliate_featuredpromo_get_response"]["resp_result"]["result"]["promos"]["promo"]
+        promo_name = promos[0]["promo_name"]
+        print(">>> Usando campana: " + promo_name)
+    except (KeyError, TypeError, IndexError) as e:
+        print(">>> ERROR obteniendo campanas: " + str(e))
+        return []
+
+    print(">>> Obteniendo productos de la campana...")
+    data2 = ali_request("aliexpress.affiliate.featuredpromo.products.get", {
+        "tracking_id": TRACKING_ID,
+        "promo_name":  promo_name,
+        "page_no":     "1",
+        "page_size":   "50",
+        "fields":      "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
+    })
+    print(">>> RESPUESTA PRODUCTOS: " + json.dumps(data2, ensure_ascii=False)[:500])
+
+    try:
+        productos = data2["aliexpress_affiliate_featuredpromo_products_get_response"]["resp_result"]["result"]["products"]["product"]
+        print(">>> " + str(len(productos)) + " productos recibidos")
     except (KeyError, TypeError) as e:
         print(">>> ERROR al leer productos: " + str(e))
         return []
@@ -126,7 +142,6 @@ def buscar_ofertas():
 
     print(">>> " + str(len(ofertas)) + " productos con descuento >= " + str(MIN_DESCUENTO) + "%")
     return ofertas
-
 # ─────────────────────────────────────────
 #  HISTORIAL
 # ─────────────────────────────────────────
