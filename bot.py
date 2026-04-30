@@ -18,10 +18,24 @@ CUPON_FIJO     = os.environ.get("CUPON_FIJO", "")
 ALI_API_URL    = "https://api-sg.aliexpress.com/sync"
 
 CATEGORIAS = [
-    "smartwatch", "wireless earbuds", "power bank", "led strip",
+    "smartwatch", "hair dryer", "electronic", "telephone", "xiaomi", "huawei", "wireless earbuds", "power bank", "led strip",
     "phone case", "laptop stand", "air fryer", "robot vacuum",
     "bluetooth speaker", "mechanical keyboard"
 ]
+
+# ─────────────────────────────────────────
+#  TIPO DE CAMBIO CNY -> EUR EN TIEMPO REAL
+# ─────────────────────────────────────────
+def obtener_tipo_cambio_cny_eur():
+    """Obtiene el tipo de cambio CNY->EUR desde una API gratuita sin clave."""
+    try:
+        r = requests.get("https://api.exchangerate-api.com/v4/latest/CNY", timeout=10)
+        tasa = r.json()["rates"]["EUR"]
+        print(">>> Tipo de cambio CNY->EUR: " + str(round(tasa, 5)))
+        return tasa
+    except Exception as e:
+        print(">>> Advertencia tipo de cambio: " + str(e) + " — usando valor fijo 0.128")
+        return 0.128  # valor de respaldo aproximado
 
 # ─────────────────────────────────────────
 #  FIRMA MD5
@@ -52,9 +66,9 @@ def ali_request(method, extra):
 def generar_link_afiliado(url_original):
     try:
         data = ali_request("aliexpress.affiliate.link.generate", {
-            "tracking_id":  TRACKING_ID,
+            "tracking_id":         TRACKING_ID,
             "promotion_link_type": "0",
-            "source_values": url_original,
+            "source_values":       url_original,
         })
         link = (data["aliexpress_affiliate_link_generate_response"]
                     ["resp_result"]["result"]["promotion_links"]["promotion_link"][0]
@@ -76,22 +90,19 @@ def normalizar_titulo(titulo):
 # ─────────────────────────────────────────
 #  BUSCAR OFERTAS
 # ─────────────────────────────────────────
-def buscar_ofertas():
+def buscar_ofertas(tasa_cambio):
     productos_raw = []
 
     for keyword in CATEGORIAS:
         print(">>> Buscando: " + keyword)
         try:
             data = ali_request("aliexpress.affiliate.product.query", {
-                "tracking_id":     TRACKING_ID,
-                "keywords":        keyword,
-                "page_no":         "1",
-                "page_size":       "20",
-                "sort":            "LAST_VOLUME_DESC",
-                "target_currency": "EUR",
-                "target_language": "ES",
-                "min_sale_price":  str(int(MIN_PRECIO * 100)),
-                "fields":          "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
+                "tracking_id":  TRACKING_ID,
+                "keywords":     keyword,
+                "page_no":      "1",
+                "page_size":    "20",
+                "sort":         "LAST_VOLUME_DESC",
+                "fields":       "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
             })
             prods = (data["aliexpress_affiliate_product_query_response"]
                         ["resp_result"]["result"]["products"]["product"])
@@ -101,22 +112,20 @@ def buscar_ofertas():
             print("    Sin resultados: " + str(e))
         time.sleep(1)
 
-    # DIAGNOSTICO — muestra los primeros 3 precios tal como los devuelve la API
-    print(">>> PRECIOS RAW DE LA API (primeros 3 productos):")
-    for p in productos_raw[:3]:
-        print("    orig: " + str(p.get("original_price")) + " | sale: " + str(p.get("sale_price")) + " | " + str(p.get("product_title",""))[:40])
-
-    # Deduplicar por titulo normalizado, quedandonos con el de mayor descuento
     mejores = {}
     for p in productos_raw:
         try:
-            precio_orig = float(str(p.get("original_price", "0")).replace(",", "."))
-            precio_sale = float(str(p.get("sale_price", "0")).replace(",", "."))
-            if precio_orig < MIN_PRECIO or precio_sale <= 0:
+            # Precios en CNY — convertir a EUR con tasa real
+            precio_orig_eur = round(float(str(p.get("original_price", "0")).replace(",", ".")) * tasa_cambio, 2)
+            precio_sale_eur = round(float(str(p.get("sale_price", "0")).replace(",", ".")) * tasa_cambio, 2)
+
+            if precio_orig_eur < MIN_PRECIO or precio_sale_eur <= 0:
                 continue
-            descuento = round((1 - precio_sale / precio_orig) * 100)
+
+            descuento = round((1 - precio_sale_eur / precio_orig_eur) * 100)
             if descuento < MIN_DESCUENTO:
                 continue
+
             clave = normalizar_titulo(p.get("product_title", ""))
             if clave not in mejores or descuento > mejores[clave]["descuento"]:
                 mejores[clave] = {
@@ -124,8 +133,8 @@ def buscar_ofertas():
                     "product_id":  str(p["product_id"]),
                     "titulo":      p["product_title"][:80],
                     "imagen":      p["product_main_image_url"],
-                    "precio_orig": precio_orig,
-                    "precio_sale": precio_sale,
+                    "precio_orig": precio_orig_eur,
+                    "precio_sale": precio_sale_eur,
                     "descuento":   descuento,
                     "link_orig":   p["promotion_link"],
                 }
@@ -134,7 +143,7 @@ def buscar_ofertas():
 
     ofertas = list(mejores.values())
     ofertas.sort(key=lambda x: x["descuento"], reverse=True)
-    print(">>> " + str(len(ofertas)) + " ofertas unicas con descuento >= " + str(MIN_DESCUENTO) + "%")
+    print(">>> " + str(len(ofertas)) + " ofertas unicas con descuento >= " + str(MIN_DESCUENTO) + "% y precio >= " + str(MIN_PRECIO) + "EUR")
     return ofertas
 
 # ─────────────────────────────────────────
@@ -191,10 +200,13 @@ def enviar_telegram(p, link):
 # ─────────────────────────────────────────
 def main():
     print("=== Bot iniciado " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " ===")
+
+    tasa_cambio = obtener_tipo_cambio_cny_eur()
+
     historial = cargar_historial()
     print(">>> Historial: " + str(len(historial)) + " productos ya publicados")
 
-    ofertas = buscar_ofertas()
+    ofertas = buscar_ofertas(tasa_cambio)
     nuevas = [o for o in ofertas if o["id"] not in historial]
     print(">>> " + str(len(nuevas)) + " ofertas nuevas disponibles")
 
