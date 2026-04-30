@@ -86,13 +86,15 @@ def buscar_ofertas():
         print(">>> Buscando: " + keyword)
         try:
             data = ali_request("aliexpress.affiliate.product.query", {
-                "tracking_id": TRACKING_ID,
-                "keywords":    keyword,
-                "page_no":     "1",
-                "page_size":   "20",
-                "sort":        "LAST_VOLUME_DESC",
-                "min_sale_price": str(int(MIN_PRECIO * 100)),  # en centavos
-                "fields":      "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
+    "tracking_id":     TRACKING_ID,
+    "keywords":        keyword,
+    "page_no":         "1",
+    "page_size":       "20",
+    "sort":            "LAST_VOLUME_DESC",
+    "target_currency": "EUR",
+    "target_language": "ES",
+    "min_sale_price":  str(int(MIN_PRECIO * 100)),
+    "fields":          "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
             })
             prods = (data["aliexpress_affiliate_product_query_response"]
                         ["resp_result"]["result"]["products"]["product"])
