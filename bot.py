@@ -87,48 +87,37 @@ def ali_request(method, extra):
 #    return ofertas
 
 def buscar_ofertas():
-    print(">>> Obteniendo campanas promocionales...")
-    data = ali_request("aliexpress.affiliate.featuredpromo.get", {
-        "tracking_id": TRACKING_ID,
-    })
+def buscar_ofertas():
+    CATEGORIAS = ["phone", "laptop", "headphones", "smartwatch", "tablet"]
+    productos_totales = []
 
-    try:
-        promos = data["aliexpress_affiliate_featuredpromo_get_response"]["resp_result"]["result"]["promos"]["promo"]
-        print(">>> " + str(len(promos)) + " campanas disponibles")
-    except (KeyError, TypeError) as e:
-        print(">>> ERROR obteniendo campanas: " + str(e))
-        return []
-
-    productos = []
-    for promo in promos:
-        promo_name = promo["promo_name"]
-        print(">>> Probando campana: " + promo_name)
+    for keyword in CATEGORIAS:
+        print(">>> Buscando: " + keyword)
         try:
-            data2 = ali_request("aliexpress.affiliate.featuredpromo.products.get", {
+            data = ali_request("aliexpress.affiliate.product.query", {
                 "tracking_id": TRACKING_ID,
-                "promo_name":  promo_name,
+                "keywords":    keyword,
                 "page_no":     "1",
-                "page_size":   "50",
+                "page_size":   "20",
+                "sort":        "SALE_PRICE_ASC",
                 "fields":      "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
             })
-            result = data2["aliexpress_affiliate_featuredpromo_products_get_response"]["resp_result"]
-            if not result:
-                print("    Campana vacia, saltando...")
-                continue
-            productos = result["result"]["products"]["product"]
-            print("    " + str(len(productos)) + " productos encontrados en esta campana")
-            break
-        except (KeyError, TypeError):
-            print("    Sin productos, saltando...")
-            continue
-
-    if not productos:
-        print(">>> Ninguna campana devolvio productos")
-        return []
+            print(">>> RESPUESTA: " + json.dumps(data, ensure_ascii=False)[:300])
+            prods = data["aliexpress_affiliate_product_query_response"]["resp_result"]["result"]["products"]["product"]
+            productos_totales.extend(prods)
+            print("    " + str(len(prods)) + " productos encontrados")
+        except (KeyError, TypeError) as e:
+            print("    Sin resultados: " + str(e))
+        time.sleep(1)
 
     ofertas = []
-    for p in productos:
+    vistos = set()
+    for p in productos_totales:
         try:
+            pid = str(p["product_id"])
+            if pid in vistos:
+                continue
+            vistos.add(pid)
             precio_orig = float(str(p.get("original_price", "0")).replace(",", "."))
             precio_sale = float(str(p.get("sale_price", "0")).replace(",", "."))
             if precio_orig <= 0 or precio_sale <= 0:
@@ -138,7 +127,7 @@ def buscar_ofertas():
             if descuento < MIN_DESCUENTO:
                 continue
             ofertas.append({
-                "id":          str(p["product_id"]),
+                "id":          pid,
                 "titulo":      p["product_title"][:80],
                 "imagen":      p["product_main_image_url"],
                 "precio_orig": precio_orig,
@@ -147,7 +136,7 @@ def buscar_ofertas():
                 "link":        p["promotion_link"],
             })
         except Exception as e:
-            print("  ERROR procesando producto: " + str(e))
+            print("  ERROR: " + str(e))
 
     print(">>> " + str(len(ofertas)) + " productos con descuento >= " + str(MIN_DESCUENTO) + "%")
     return ofertas
