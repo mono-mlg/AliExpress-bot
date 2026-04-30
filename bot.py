@@ -94,27 +94,36 @@ def buscar_ofertas():
 
     try:
         promos = data["aliexpress_affiliate_featuredpromo_get_response"]["resp_result"]["result"]["promos"]["promo"]
-        promo_name = promos[0]["promo_name"]
-        print(">>> Usando campana: " + promo_name)
-    except (KeyError, TypeError, IndexError) as e:
+        print(">>> " + str(len(promos)) + " campanas disponibles")
+    except (KeyError, TypeError) as e:
         print(">>> ERROR obteniendo campanas: " + str(e))
         return []
 
-    print(">>> Obteniendo productos de la campana...")
-    data2 = ali_request("aliexpress.affiliate.featuredpromo.products.get", {
-        "tracking_id": TRACKING_ID,
-        "promo_name":  promo_name,
-        "page_no":     "1",
-        "page_size":   "50",
-        "fields":      "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
-    })
-    print(">>> RESPUESTA PRODUCTOS: " + json.dumps(data2, ensure_ascii=False)[:500])
+    productos = []
+    for promo in promos:
+        promo_name = promo["promo_name"]
+        print(">>> Probando campana: " + promo_name)
+        try:
+            data2 = ali_request("aliexpress.affiliate.featuredpromo.products.get", {
+                "tracking_id": TRACKING_ID,
+                "promo_name":  promo_name,
+                "page_no":     "1",
+                "page_size":   "50",
+                "fields":      "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
+            })
+            result = data2["aliexpress_affiliate_featuredpromo_products_get_response"]["resp_result"]
+            if not result:
+                print("    Campana vacia, saltando...")
+                continue
+            productos = result["result"]["products"]["product"]
+            print("    " + str(len(productos)) + " productos encontrados en esta campana")
+            break
+        except (KeyError, TypeError):
+            print("    Sin productos, saltando...")
+            continue
 
-    try:
-        productos = data2["aliexpress_affiliate_featuredpromo_products_get_response"]["resp_result"]["result"]["products"]["product"]
-        print(">>> " + str(len(productos)) + " productos recibidos")
-    except (KeyError, TypeError) as e:
-        print(">>> ERROR al leer productos: " + str(e))
+    if not productos:
+        print(">>> Ninguna campana devolvio productos")
         return []
 
     ofertas = []
