@@ -17,7 +17,6 @@ MIN_PRECIO     = 5.0
 CUPON_FIJO     = os.environ.get("CUPON_FIJO", "")
 ALI_API_URL    = "https://api-sg.aliexpress.com/sync"
 
-# Categorias de busqueda — variadas para conseguir mejores ofertas
 CATEGORIAS = [
     "smartwatch", "wireless earbuds", "power bank", "led strip",
     "phone case", "laptop stand", "air fryer", "robot vacuum",
@@ -51,7 +50,6 @@ def ali_request(method, extra):
 #  GENERAR ENLACE DE AFILIADO CORTO
 # ─────────────────────────────────────────
 def generar_link_afiliado(url_original):
-    """Convierte cualquier URL de AliExpress en enlace de afiliado verificado."""
     try:
         data = ali_request("aliexpress.affiliate.link.generate", {
             "tracking_id":  TRACKING_ID,
@@ -63,14 +61,13 @@ def generar_link_afiliado(url_original):
                     ["promotion_link"])
         return link
     except Exception as e:
-        print("    Advertencia — no se pudo acortar el link: " + str(e))
+        print("    Advertencia enlace: " + str(e))
         return url_original
 
 # ─────────────────────────────────────────
 #  DEDUPLICACION POR TITULO NORMALIZADO
 # ─────────────────────────────────────────
 def normalizar_titulo(titulo):
-    """Extrae las primeras 5 palabras significativas del titulo para deduplicar."""
     titulo = titulo.lower()
     titulo = re.sub(r"[^a-z0-9 ]", " ", titulo)
     palabras = [p for p in titulo.split() if len(p) > 2]
@@ -86,15 +83,15 @@ def buscar_ofertas():
         print(">>> Buscando: " + keyword)
         try:
             data = ali_request("aliexpress.affiliate.product.query", {
-    "tracking_id":     TRACKING_ID,
-    "keywords":        keyword,
-    "page_no":         "1",
-    "page_size":       "20",
-    "sort":            "LAST_VOLUME_DESC",
-    "target_currency": "EUR",
-    "target_language": "ES",
-    "min_sale_price":  str(int(MIN_PRECIO * 100)),
-    "fields":          "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
+                "tracking_id":     TRACKING_ID,
+                "keywords":        keyword,
+                "page_no":         "1",
+                "page_size":       "20",
+                "sort":            "LAST_VOLUME_DESC",
+                "target_currency": "EUR",
+                "target_language": "ES",
+                "min_sale_price":  str(int(MIN_PRECIO * 100)),
+                "fields":          "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
             })
             prods = (data["aliexpress_affiliate_product_query_response"]
                         ["resp_result"]["result"]["products"]["product"])
@@ -103,6 +100,11 @@ def buscar_ofertas():
         except (KeyError, TypeError) as e:
             print("    Sin resultados: " + str(e))
         time.sleep(1)
+
+    # DIAGNOSTICO — muestra los primeros 3 precios tal como los devuelve la API
+    print(">>> PRECIOS RAW DE LA API (primeros 3 productos):")
+    for p in productos_raw[:3]:
+        print("    orig: " + str(p.get("original_price")) + " | sale: " + str(p.get("sale_price")) + " | " + str(p.get("product_title",""))[:40])
 
     # Deduplicar por titulo normalizado, quedandonos con el de mayor descuento
     mejores = {}
@@ -118,7 +120,7 @@ def buscar_ofertas():
             clave = normalizar_titulo(p.get("product_title", ""))
             if clave not in mejores or descuento > mejores[clave]["descuento"]:
                 mejores[clave] = {
-                    "id":          clave,           # usamos clave normalizada como ID
+                    "id":          clave,
                     "product_id":  str(p["product_id"]),
                     "titulo":      p["product_title"][:80],
                     "imagen":      p["product_main_image_url"],
@@ -132,11 +134,11 @@ def buscar_ofertas():
 
     ofertas = list(mejores.values())
     ofertas.sort(key=lambda x: x["descuento"], reverse=True)
-    print(">>> " + str(len(ofertas)) + " ofertas unicas con descuento >= " + str(MIN_DESCUENTO) + "% y precio >= " + str(MIN_PRECIO) + "EUR")
+    print(">>> " + str(len(ofertas)) + " ofertas unicas con descuento >= " + str(MIN_DESCUENTO) + "%")
     return ofertas
 
 # ─────────────────────────────────────────
-#  HISTORIAL (basado en titulo normalizado)
+#  HISTORIAL
 # ─────────────────────────────────────────
 def cargar_historial():
     if Path(HISTORIAL_FILE).exists():
