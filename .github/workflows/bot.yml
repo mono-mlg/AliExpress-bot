@@ -47,4 +47,4 @@ jobs:
           python3 merge_historial.py
           git add historial.json
           git diff --staged --quiet || git commit -m "📝 Historial actualizado $(date +'%Y-%m-%d %H:%M')"
-          git push
+          git push --force-with-lease
