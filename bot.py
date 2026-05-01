@@ -18,7 +18,8 @@ CUPON_FIJO     = os.environ.get("CUPON_FIJO", "")
 ALI_API_URL    = "https://api-sg.aliexpress.com/sync"
 
 CATEGORIAS = [
-    "smartwatch", "hair dryer", "electronic", "telephone", "xiaomi", "huawei", "wireless earbuds", "led strip", "decoration", "air fryer", "home", "sport", "crossfit"
+    #"smartwatch", "hair dryer", "electronic", "telephone", "xiaomi", "huawei", "wireless earbuds", "led strip", "decoration", "air fryer", "home", "sport", "crossfit"
+    "parfum"
 ]
 
 # ─────────────────────────────────────────
