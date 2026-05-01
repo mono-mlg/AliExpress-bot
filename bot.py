@@ -11,16 +11,14 @@ TRACKING_ID    = os.environ["ALI_TRACKING_ID"]
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT  = os.environ["TELEGRAM_CHAT_ID"]
 HISTORIAL_FILE = "historial.json"
-MAX_POSTS      = 3
-MIN_DESCUENTO  = 30
+MAX_POSTS      = 10
+MIN_DESCUENTO  = 40
 MIN_PRECIO     = 5.0
 CUPON_FIJO     = os.environ.get("CUPON_FIJO", "")
 ALI_API_URL    = "https://api-sg.aliexpress.com/sync"
 
 CATEGORIAS = [
-    "smartwatch", "hair dryer", "electronic", "telephone", "xiaomi", "huawei", "wireless earbuds", "power bank", "led strip",
-    "phone case", "laptop stand", "air fryer", "robot vacuum",
-    "bluetooth speaker", "mechanical keyboard"
+    "smartwatch", "hair dryer", "electronic", "telephone", "xiaomi", "huawei", "wireless earbuds", "led strip", "decoration", "air fryer", "home", "sport", "crossfit"
 ]
 
 # ─────────────────────────────────────────
