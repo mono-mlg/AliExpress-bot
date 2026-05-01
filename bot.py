@@ -169,14 +169,14 @@ def formatear_mensaje(p, link):
         precio_final = round(p["precio_sale"] * 0.95, 2)
         linea_cupon = "\n🏷️ *DESCUENTO EXTRA*\n"
         linea_cupon += "✂️ Cupon: `" + CUPON_FIJO + "`\n"
-        linea_cupon += "🔥💵 Precio FINAL con cupon: *" + str(precio_final) + "€*\n"
+        linea_cupon += "🔥💵 Precio FINAL con cupon: *~" + str(precio_final) + "€*\n"
 
     msg = "🔥 ‼️*BAJADA DE PRECIO*‼️ #Aliexpress\n\n"
     msg += "🌟 " + p["titulo"] + "\n\n"
-    msg += "❌ ~~PVP: " + str(p["precio_orig"]) + "€~~\n"
-    msg += "✅ *Oferta: " + str(p["precio_sale"]) + "€*  (-" + str(p["descuento"]) + "%)\n"
+    msg += "🏷️ Descuento: *-" + str(p["descuento"]) + "%*\n"
+    msg += "💰 Precio oferta: *~" + str(p["precio_sale"]) + "€* _(puede ser menor al hacer clic)_\n"
     msg += linea_cupon + "\n"
-    msg += "🌍 [COMPRAR AQUI](" + link + ")\n\n"
+    msg += "🌍 [VER PRECIO FINAL Y COMPRAR](" + link + ")\n\n"
     msg += "_Siguenos para mas ofertas diarias_ 🛒"
     return msg
 
