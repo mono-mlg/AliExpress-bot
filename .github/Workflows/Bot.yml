@@ -48,4 +48,3 @@ jobs:
           git add historial.json
           git diff --staged --quiet || git commit -m "📝 Historial actualizado $(date +'%Y-%m-%d %H:%M')"
           git push
-          
