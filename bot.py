@@ -91,60 +91,72 @@ def normalizar_titulo(titulo):
 # ─────────────────────────────────────────
 
 def buscar_ofertas(tasa_cambio):
-    productos_raw = []
+    mejores = {}  # clave_titulo -> producto
+    por_keyword = {}  # keyword -> cuantos productos lleva
 
     for keyword in CATEGORIAS:
         print(">>> Buscando: " + keyword)
+        por_keyword[keyword] = 0
         try:
             data = ali_request("aliexpress.affiliate.product.query", {
-    "tracking_id":     TRACKING_ID,
-    "keywords":        keyword,
-    "page_no":         "1",
-    "page_size":       "20",
-    "sort":            "LAST_VOLUME_DESC",
-    "ship_to_country": "ES",
-    "fields":          "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
-})
+                "tracking_id":     TRACKING_ID,
+                "keywords":        keyword,
+                "page_no":         "1",
+                "page_size":       "20",
+                "sort":            "LAST_VOLUME_DESC",
+                "ship_to_country": "ES",
+                "fields":          "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
+            })
             prods = (data["aliexpress_affiliate_product_query_response"]
                         ["resp_result"]["result"]["products"]["product"])
             print("    " + str(len(prods)) + " productos encontrados")
-            productos_raw.extend(prods)
         except (KeyError, TypeError) as e:
             print("    Sin resultados: " + str(e))
-        time.sleep(1)
+            time.sleep(1)
+            continue
 
-    mejores = {}
-    for p in productos_raw:
-        try:
-            # Precios en CNY — convertir a EUR con tasa real
-            precio_orig_eur = round(float(str(p.get("original_price", "0")).replace(",", ".")) * tasa_cambio, 2)
-            precio_sale_eur = round(float(str(p.get("sale_price", "0")).replace(",", ".")) * tasa_cambio, 2)
+        # Ordenar por descuento descendente para quedarnos con los mejores
+        prods_validos = []
+        for p in prods:
+            try:
+                precio_orig = round(float(str(p.get("original_price", "0")).replace(",", ".")) * tasa_cambio, 2)
+                precio_sale = round(float(str(p.get("sale_price", "0")).replace(",", ".")) * tasa_cambio, 2)
+                if precio_orig < MIN_PRECIO or precio_sale <= 0:
+                    continue
+                descuento = round((1 - precio_sale / precio_orig) * 100)
+                if descuento < MIN_DESCUENTO:
+                    continue
+                prods_validos.append((descuento, p, precio_orig, precio_sale))
+            except Exception as e:
+                print("  ERROR: " + str(e))
 
-            if precio_orig_eur < MIN_PRECIO or precio_sale_eur <= 0:
-                continue
+        prods_validos.sort(key=lambda x: x[0], reverse=True)
 
-            descuento = round((1 - precio_sale_eur / precio_orig_eur) * 100)
-            if descuento < MIN_DESCUENTO:
-                continue
-
+        for descuento, p, precio_orig, precio_sale in prods_validos:
+            if por_keyword[keyword] >= 2:
+                break
             clave = normalizar_titulo(p.get("product_title", ""))
-            if clave not in mejores or descuento > mejores[clave]["descuento"]:
-                mejores[clave] = {
-                    "id":          clave,
-                    "product_id":  str(p["product_id"]),
-                     "titulo":      p["product_title"][:80],
-                    "imagen":      p["product_main_image_url"],
-                    "precio_orig": precio_orig_eur,
-                    "precio_sale": precio_sale_eur,
-                    "descuento":   descuento,
-                    "link_orig":   p["promotion_link"],
-                 }
-        except Exception as e:
-            print("  ERROR procesando: " + str(e))
+            if clave in mejores:
+                continue
+            mejores[clave] = {
+                "id":          clave,
+                "product_id":  str(p["product_id"]),
+                "titulo":      p["product_title"][:80],
+                "imagen":      p["product_main_image_url"],
+                "precio_orig": precio_orig,
+                "precio_sale": precio_sale,
+                "descuento":   descuento,
+                "link_orig":   p["promotion_link"],
+                "keyword":     keyword,
+            }
+            por_keyword[keyword] += 1
+            print("    ✓ " + p.get("product_title","")[:45] + " (-" + str(descuento) + "%)")
+
+        time.sleep(1)
 
     ofertas = list(mejores.values())
     ofertas.sort(key=lambda x: x["descuento"], reverse=True)
-    print(">>> " + str(len(ofertas)) + " ofertas unicas con descuento >= " + str(MIN_DESCUENTO) + "% y precio >= " + str(MIN_PRECIO) + "EUR")
+    print(">>> " + str(len(ofertas)) + " ofertas unicas (max 2 por keyword)")
     return ofertas
 
 
