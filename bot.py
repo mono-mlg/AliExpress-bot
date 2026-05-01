@@ -19,7 +19,7 @@ ALI_API_URL    = "https://api-sg.aliexpress.com/sync"
 
 CATEGORIAS = [
     #"smartwatch", "hair dryer", "electronic", "telephone", "xiaomi", "huawei", "wireless earbuds", "led strip", "decoration", "air fryer", "home", "sport", "crossfit"
-    "parfum"
+    "armaf", "afnan", "lattafa", "redmi", "huawei"
 ]
 
 # ─────────────────────────────────────────
