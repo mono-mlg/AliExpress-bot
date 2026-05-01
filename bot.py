@@ -1,4 +1,4 @@
-import os, json, time, hashlib, re, requests
+import os, json, time, hashlib, re, random, requests
 from datetime import datetime
 from pathlib import Path
 
@@ -18,8 +18,9 @@ CUPON_FIJO     = os.environ.get("CUPON_FIJO", "")
 ALI_API_URL    = "https://api-sg.aliexpress.com/sync"
 
 CATEGORIAS = [
-    #"smartwatch", "hair dryer", "electronic", "telephone", "xiaomi", "huawei", "wireless earbuds", "led strip", "decoration", "air fryer", "home", "sport", "crossfit"
-   "electronic", "home deco", "crossfit", "led", "camping", "armaf", "afnan", "lattafa", "redmi", "huawei"
+    "electronic", "home deco", "fitness", "led lighting", "camping gear",
+    "perfume", "smartphone accessories", "kitchen gadgets", "fashion",
+    "beauty", "toys", "pet supplies", "tools", "garden", "sports"
 ]
 
 # ─────────────────────────────────────────
@@ -91,8 +92,8 @@ def normalizar_titulo(titulo):
 # ─────────────────────────────────────────
 
 def buscar_ofertas(tasa_cambio):
-    mejores = {}  # clave_titulo -> producto
-    por_keyword = {}  # keyword -> cuantos productos lleva
+    mejores = {}
+    por_keyword = {}
 
     for keyword in CATEGORIAS:
         print(">>> Buscando: " + keyword)
@@ -101,8 +102,8 @@ def buscar_ofertas(tasa_cambio):
             data = ali_request("aliexpress.affiliate.product.query", {
                 "tracking_id":     TRACKING_ID,
                 "keywords":        keyword,
-                "page_no":         "1",
-                "page_size":       "20",
+                "page_no":         str(random.randint(1, 5)),
+                "page_size":       "50",
                 "sort":            "LAST_VOLUME_DESC",
                 "ship_to_country": "ES",
                 "fields":          "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
@@ -115,7 +116,6 @@ def buscar_ofertas(tasa_cambio):
             time.sleep(1)
             continue
 
-        # Ordenar por descuento descendente para quedarnos con los mejores
         prods_validos = []
         for p in prods:
             try:
