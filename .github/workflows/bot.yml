@@ -44,15 +44,15 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main
           python3 -c "
-import json, subprocess
-result = subprocess.run(['git', 'show', 'origin/main:historial.json'], capture_output=True, text=True)
-remoto = set(json.loads(result.stdout)) if result.returncode == 0 else set()
-with open('historial.json') as f:
-    local = set(json.load(f))
-merged = list(remoto | local)[-500:]
-with open('historial.json', 'w') as f:
-    json.dump(merged, f)
-"
+              import json, subprocess
+              result = subprocess.run(['git', 'show', 'origin/main:historial.json'], capture_output=True, text=True)
+              remoto = set(json.loads(result.stdout)) if result.returncode == 0 else set()
+              with open('historial.json') as f:
+                local = set(json.load(f))
+              merged = list(remoto | local)[-500:]
+             with open('historial.json', 'w') as f:
+                 json.dump(merged, f)
+          "
           git add historial.json
           git diff --staged --quiet || git commit -m "📝 Historial actualizado $(date +'%Y-%m-%d %H:%M')"
           git push
