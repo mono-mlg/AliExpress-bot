@@ -90,7 +90,7 @@ def normalizar_titulo(titulo):
 #  BUSCAR OFERTAS
 # ─────────────────────────────────────────
 
- def buscar_ofertas(tasa_cambio):
+def buscar_ofertas(tasa_cambio):
     productos_raw = []
 
     for keyword in CATEGORIAS:
