@@ -18,7 +18,7 @@ MIN_PRECIO     = 5.0
 CUPON_FIJO     = os.environ.get("CUPON_FIJO", "")
 ALI_API_URL    = "https://api-sg.aliexpress.com/sync"
 LOGO_FILE      = "logo.png"
-CANAL_NOMBRE   = "@CanalMultiChollos"
+CANAL_NOMBRE   = "@MultiChollos"
 
 CATEGORIAS = [
     "electronic", "home deco", "fitness", "led lighting", "camping gear",
@@ -84,35 +84,29 @@ def generar_link_afiliado(url_original):
 #  MARCA DE AGUA
 # ─────────────────────────────────────────
 def aplicar_marca_agua(url_imagen):
-    """Descarga la imagen del producto y superpone logo + texto en esquina superior derecha."""
+    """Logo en esquina superior derecha, texto del canal en esquina inferior derecha."""
     try:
-        # Descargar imagen del producto
         r = requests.get(url_imagen, timeout=15)
         r.raise_for_status()
         img = Image.open(io.BytesIO(r.content)).convert("RGBA")
         ancho, alto = img.size
-
-        # ── LOGO ──
         margen = int(ancho * 0.03)
-        tam_logo = int(ancho * 0.18)  # logo ocupa 18% del ancho
 
+        # ── LOGO — esquina superior derecha ──
+        tam_logo = int(ancho * 0.18)
         if Path(LOGO_FILE).exists():
             logo = Image.open(LOGO_FILE).convert("RGBA")
             logo = logo.resize((tam_logo, tam_logo), Image.LANCZOS)
-            # Semitransparente al 80%
             r_ch, g_ch, b_ch, a_ch = logo.split()
             a_ch = a_ch.point(lambda x: int(x * 0.85))
             logo.putalpha(a_ch)
-            pos_logo = (ancho - tam_logo - margen, margen)
-            img.paste(logo, pos_logo, logo)
+            img.paste(logo, (ancho - tam_logo - margen, margen), logo)
         else:
-            print("    Advertencia: logo.png no encontrado, solo se aplica texto")
-            tam_logo = 0
-            pos_logo = (ancho - margen, margen)
+            print("    Advertencia: logo.png no encontrado")
 
-        # ── TEXTO DEL CANAL ──
+        # ── TEXTO — esquina inferior derecha ──
         draw = ImageDraw.Draw(img)
-        tam_fuente = max(int(ancho * 0.045), 14)
+        tam_fuente = max(int(ancho * 0.048), 14)
         try:
             font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", tam_fuente)
         except:
@@ -122,23 +116,21 @@ def aplicar_marca_agua(url_imagen):
         txt_ancho = bbox[2] - bbox[0]
         txt_alto  = bbox[3] - bbox[1]
 
-        # Posicion: debajo del logo, alineado a la derecha
+        pad = 6
         pos_txt_x = ancho - txt_ancho - margen
-        pos_txt_y = margen + tam_logo + int(margen * 0.5)
+        pos_txt_y = alto - txt_alto - margen
 
         # Fondo semitransparente detrás del texto
-        pad = 4
         fondo = Image.new("RGBA", img.size, (0, 0, 0, 0))
         fondo_draw = ImageDraw.Draw(fondo)
-        fondo_draw.rectangle(
+        fondo_draw.rounded_rectangle(
             [pos_txt_x - pad, pos_txt_y - pad, pos_txt_x + txt_ancho + pad, pos_txt_y + txt_alto + pad],
-            fill=(0, 0, 0, 140)
+            radius=6, fill=(0, 0, 0, 160)
         )
         img = Image.alpha_composite(img, fondo)
         draw = ImageDraw.Draw(img)
-        draw.text((pos_txt_x, pos_txt_y), CANAL_NOMBRE, font=font, fill=(255, 255, 255, 230))
+        draw.text((pos_txt_x, pos_txt_y), CANAL_NOMBRE, font=font, fill=(255, 220, 0, 255))
 
-        # Convertir a JPEG y devolver como bytes
         img_final = img.convert("RGB")
         buffer = io.BytesIO()
         img_final.save(buffer, format="JPEG", quality=88)
@@ -148,6 +140,36 @@ def aplicar_marca_agua(url_imagen):
     except Exception as e:
         print("    Advertencia marca de agua: " + str(e))
         return None
+
+
+# ─────────────────────────────────────────
+#  TRADUCCION AL ESPAÑOL
+# ─────────────────────────────────────────
+def traducir_es(texto):
+    """Traduce texto al español usando MyMemory API (gratuita, sin clave)."""
+    try:
+        r = requests.get(
+            "https://api.mymemory.translated.net/get",
+            params={"q": texto[:500], "langpair": "en|es"},
+            timeout=8
+        )
+        resultado = r.json()
+        traducido = resultado["responseData"]["translatedText"]
+        if resultado["responseData"]["match"] < 0.3:
+            return texto
+        return traducido
+    except Exception as e:
+        print("    Advertencia traduccion: " + str(e))
+        return texto
+
+def generar_descripcion(titulo_es, precio_sale, descuento):
+    if descuento >= 60:
+        frase = "Oferta increible con mas del " + str(descuento) + "% de descuento."
+    elif descuento >= 40:
+        frase = "Gran descuento del " + str(descuento) + "% en este producto."
+    else:
+        frase = "Ahorra un " + str(descuento) + "% con esta oferta."
+    return titulo_es + " " + frase + " Por solo ~" + str(precio_sale) + "€, no dejes escapar esta oportunidad."
 
 # ─────────────────────────────────────────
 #  DEDUPLICACION
@@ -245,7 +267,7 @@ def guardar_historial(ids):
 # ─────────────────────────────────────────
 #  FORMATEAR MENSAJE
 # ─────────────────────────────────────────
-def formatear_mensaje(p, link):
+def formatear_mensaje(p, link, descripcion_es):
     linea_cupon = ""
     precio_final = p["precio_sale"]
     if CUPON_FIJO:
@@ -255,7 +277,7 @@ def formatear_mensaje(p, link):
         linea_cupon += "🔥💵 Precio FINAL con cupon: *~" + str(precio_final) + "€*\n"
 
     msg = "🔥 ‼️*BAJADA DE PRECIO*‼️ #Aliexpress\n\n"
-    msg += "🌟 " + p["titulo"] + "\n\n"
+    msg += "📦 " + descripcion_es + "\n\n"
     msg += "🏷️ Descuento: *-" + str(p["descuento"]) + "%*\n"
     msg += "💰 Precio oferta: *~" + str(p["precio_sale"]) + "€* _(puede ser menor al hacer clic)_\n"
     msg += linea_cupon + "\n"
@@ -266,8 +288,8 @@ def formatear_mensaje(p, link):
 # ─────────────────────────────────────────
 #  ENVIAR A TELEGRAM
 # ─────────────────────────────────────────
-def enviar_telegram(p, link):
-    texto = formatear_mensaje(p, link)
+def enviar_telegram(p, link, descripcion_es):
+    texto = formatear_mensaje(p, link, descripcion_es)
     print(">>> Enviando: " + p["titulo"][:50])
 
     imagen_con_marca = aplicar_marca_agua(p["imagen"])
@@ -311,10 +333,13 @@ def main():
     for p in nuevas:
         if publicados >= MAX_POSTS:
             break
+        print(">>> Traduciendo titulo: " + p["titulo"][:40])
+        titulo_es = traducir_es(p["titulo"])
+        descripcion_es = generar_descripcion(titulo_es, p["precio_sale"], p["descuento"])
         print(">>> Generando enlace de afiliado para: " + p["titulo"][:40])
         link = generar_link_afiliado(p["link_orig"])
         print("    Link: " + link[:80])
-        enviar_telegram(p, link)
+        enviar_telegram(p, link, descripcion_es)
         historial.add(p["id"])
         publicados += 1
         time.sleep(2)
@@ -324,4 +349,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-ENDOFFILE
