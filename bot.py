@@ -1,6 +1,7 @@
-import os, json, time, hashlib, re, random, requests
+import os, json, time, hashlib, re, random, requests, io
 from datetime import datetime
 from pathlib import Path
+from PIL import Image, ImageDraw, ImageFont
 
 # ─────────────────────────────────────────
 #  CONFIGURACION
@@ -12,10 +13,12 @@ TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT  = os.environ["TELEGRAM_CHAT_ID"]
 HISTORIAL_FILE = "historial.json"
 MAX_POSTS      = 10
-MIN_DESCUENTO  = 40
+MIN_DESCUENTO  = 30
 MIN_PRECIO     = 5.0
 CUPON_FIJO     = os.environ.get("CUPON_FIJO", "")
 ALI_API_URL    = "https://api-sg.aliexpress.com/sync"
+LOGO_FILE      = "logo.png"
+CANAL_NOMBRE   = "@CanalMultiChollos"
 
 CATEGORIAS = [
     "electronic", "home deco", "fitness", "led lighting", "camping gear",
@@ -24,18 +27,17 @@ CATEGORIAS = [
 ]
 
 # ─────────────────────────────────────────
-#  TIPO DE CAMBIO CNY -> EUR EN TIEMPO REAL
+#  TIPO DE CAMBIO CNY -> EUR
 # ─────────────────────────────────────────
 def obtener_tipo_cambio_cny_eur():
-    """Obtiene el tipo de cambio CNY->EUR desde una API gratuita sin clave."""
     try:
         r = requests.get("https://api.exchangerate-api.com/v4/latest/CNY", timeout=10)
         tasa = r.json()["rates"]["EUR"]
         print(">>> Tipo de cambio CNY->EUR: " + str(round(tasa, 5)))
         return tasa
     except Exception as e:
-        print(">>> Advertencia tipo de cambio: " + str(e) + " — usando valor fijo 0.128")
-        return 0.128  # valor de respaldo aproximado
+        print(">>> Advertencia tipo de cambio: " + str(e) + " — usando 0.128")
+        return 0.128
 
 # ─────────────────────────────────────────
 #  FIRMA MD5
@@ -61,7 +63,7 @@ def ali_request(method, extra):
     return r.json()
 
 # ─────────────────────────────────────────
-#  GENERAR ENLACE DE AFILIADO CORTO
+#  GENERAR ENLACE DE AFILIADO
 # ─────────────────────────────────────────
 def generar_link_afiliado(url_original):
     try:
@@ -79,7 +81,76 @@ def generar_link_afiliado(url_original):
         return url_original
 
 # ─────────────────────────────────────────
-#  DEDUPLICACION POR TITULO NORMALIZADO
+#  MARCA DE AGUA
+# ─────────────────────────────────────────
+def aplicar_marca_agua(url_imagen):
+    """Descarga la imagen del producto y superpone logo + texto en esquina superior derecha."""
+    try:
+        # Descargar imagen del producto
+        r = requests.get(url_imagen, timeout=15)
+        r.raise_for_status()
+        img = Image.open(io.BytesIO(r.content)).convert("RGBA")
+        ancho, alto = img.size
+
+        # ── LOGO ──
+        margen = int(ancho * 0.03)
+        tam_logo = int(ancho * 0.18)  # logo ocupa 18% del ancho
+
+        if Path(LOGO_FILE).exists():
+            logo = Image.open(LOGO_FILE).convert("RGBA")
+            logo = logo.resize((tam_logo, tam_logo), Image.LANCZOS)
+            # Semitransparente al 80%
+            r_ch, g_ch, b_ch, a_ch = logo.split()
+            a_ch = a_ch.point(lambda x: int(x * 0.85))
+            logo.putalpha(a_ch)
+            pos_logo = (ancho - tam_logo - margen, margen)
+            img.paste(logo, pos_logo, logo)
+        else:
+            print("    Advertencia: logo.png no encontrado, solo se aplica texto")
+            tam_logo = 0
+            pos_logo = (ancho - margen, margen)
+
+        # ── TEXTO DEL CANAL ──
+        draw = ImageDraw.Draw(img)
+        tam_fuente = max(int(ancho * 0.045), 14)
+        try:
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", tam_fuente)
+        except:
+            font = ImageFont.load_default()
+
+        bbox = draw.textbbox((0, 0), CANAL_NOMBRE, font=font)
+        txt_ancho = bbox[2] - bbox[0]
+        txt_alto  = bbox[3] - bbox[1]
+
+        # Posicion: debajo del logo, alineado a la derecha
+        pos_txt_x = ancho - txt_ancho - margen
+        pos_txt_y = margen + tam_logo + int(margen * 0.5)
+
+        # Fondo semitransparente detrás del texto
+        pad = 4
+        fondo = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        fondo_draw = ImageDraw.Draw(fondo)
+        fondo_draw.rectangle(
+            [pos_txt_x - pad, pos_txt_y - pad, pos_txt_x + txt_ancho + pad, pos_txt_y + txt_alto + pad],
+            fill=(0, 0, 0, 140)
+        )
+        img = Image.alpha_composite(img, fondo)
+        draw = ImageDraw.Draw(img)
+        draw.text((pos_txt_x, pos_txt_y), CANAL_NOMBRE, font=font, fill=(255, 255, 255, 230))
+
+        # Convertir a JPEG y devolver como bytes
+        img_final = img.convert("RGB")
+        buffer = io.BytesIO()
+        img_final.save(buffer, format="JPEG", quality=88)
+        buffer.seek(0)
+        return buffer
+
+    except Exception as e:
+        print("    Advertencia marca de agua: " + str(e))
+        return None
+
+# ─────────────────────────────────────────
+#  DEDUPLICACION
 # ─────────────────────────────────────────
 def normalizar_titulo(titulo):
     titulo = titulo.lower()
@@ -90,7 +161,6 @@ def normalizar_titulo(titulo):
 # ─────────────────────────────────────────
 #  BUSCAR OFERTAS
 # ─────────────────────────────────────────
-
 def buscar_ofertas(tasa_cambio):
     mejores = {}
     por_keyword = {}
@@ -159,7 +229,6 @@ def buscar_ofertas(tasa_cambio):
     print(">>> " + str(len(ofertas)) + " ofertas unicas (max 2 por keyword)")
     return ofertas
 
-
 # ─────────────────────────────────────────
 #  HISTORIAL
 # ─────────────────────────────────────────
@@ -174,7 +243,7 @@ def guardar_historial(ids):
         json.dump(list(ids)[-500:], f)
 
 # ─────────────────────────────────────────
-#  FORMATEAR MENSAJE TELEGRAM
+#  FORMATEAR MENSAJE
 # ─────────────────────────────────────────
 def formatear_mensaje(p, link):
     linea_cupon = ""
@@ -200,11 +269,25 @@ def formatear_mensaje(p, link):
 def enviar_telegram(p, link):
     texto = formatear_mensaje(p, link)
     print(">>> Enviando: " + p["titulo"][:50])
-    r = requests.post(
-        "https://api.telegram.org/bot" + TELEGRAM_TOKEN + "/sendPhoto",
-        json={"chat_id": TELEGRAM_CHAT, "photo": p["imagen"], "caption": texto, "parse_mode": "Markdown"},
-        timeout=15
-    )
+
+    imagen_con_marca = aplicar_marca_agua(p["imagen"])
+
+    if imagen_con_marca:
+        # Enviar imagen procesada como archivo
+        r = requests.post(
+            "https://api.telegram.org/bot" + TELEGRAM_TOKEN + "/sendPhoto",
+            data={"chat_id": TELEGRAM_CHAT, "caption": texto, "parse_mode": "Markdown"},
+            files={"photo": ("producto.jpg", imagen_con_marca, "image/jpeg")},
+            timeout=30
+        )
+    else:
+        # Fallback: enviar URL original si falla el procesamiento
+        r = requests.post(
+            "https://api.telegram.org/bot" + TELEGRAM_TOKEN + "/sendPhoto",
+            json={"chat_id": TELEGRAM_CHAT, "photo": p["imagen"], "caption": texto, "parse_mode": "Markdown"},
+            timeout=15
+        )
+
     print("    Telegram: " + str(r.status_code))
     if r.status_code != 200:
         print("    Error: " + r.text[:200])
@@ -241,3 +324,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+ENDOFFILE
