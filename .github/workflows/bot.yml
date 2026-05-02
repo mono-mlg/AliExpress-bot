@@ -28,6 +28,9 @@ jobs:
       - name: 📦 Instalar dependencias
         run: pip install requests
 
+      - name: 📦 Instalar dependencias
+        run: pip install requests Pillow
+
       - name: 🤖 Ejecutar bot
         env:
           ALI_APP_KEY:      ${{ secrets.ALI_APP_KEY }}
