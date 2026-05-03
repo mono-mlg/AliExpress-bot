@@ -1,0 +1,6 @@
+# Añade aquí los enlaces de AliExpress que quieres publicar
+# Un enlace por línea — se publican en orden de arriba a abajo
+# Las líneas que empiezan por # son comentarios y se ignoran
+# Ejemplo:
+# https://www.aliexpress.com/item/1005006789012345.html
+# https://s.click.aliexpress.com/e/_abc123
