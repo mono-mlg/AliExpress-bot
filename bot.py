@@ -238,7 +238,7 @@ def buscar_ofertas(tasa_cambio):
                 "precio_orig": precio_orig,
                 "precio_sale": precio_sale,
                 "descuento":   descuento,
-                "link_orig":   p.get("promotion_link", ""),
+                "link_orig":   p["promotion_link"],
                 "keyword":     keyword,
             }
             por_keyword[keyword] += 1
@@ -337,8 +337,7 @@ def main():
         titulo_es = traducir_es(p["titulo"])
         descripcion_es = generar_descripcion(titulo_es, p["precio_sale"], p["descuento"])
         print(">>> Generando enlace de afiliado para: " + p["titulo"][:40])
-        url_base = p["link_orig"] if p["link_orig"] else "https://www.aliexpress.com/item/" + p["product_id"] + ".html"
-        link = generar_link_afiliado(url_base)
+        link = generar_link_afiliado(p["link_orig"])
         print("    Link: " + link[:80])
         enviar_telegram(p, link, descripcion_es)
         historial.add(p["id"])
