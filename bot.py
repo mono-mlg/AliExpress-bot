@@ -337,8 +337,8 @@ def main():
         titulo_es = traducir_es(p["titulo"])
         descripcion_es = generar_descripcion(titulo_es, p["precio_sale"], p["descuento"])
         print(">>> Generando enlace de afiliado para: " + p["titulo"][:40])
-url_base = p["link_orig"] if p["link_orig"] else "https://www.aliexpress.com/item/" + p["product_id"] + ".html"
-link = generar_link_afiliado(url_base)
+        url_base = p["link_orig"] if p["link_orig"] else "https://www.aliexpress.com/item/" + p["product_id"] + ".html"
+        link = generar_link_afiliado(url_base)
         print("    Link: " + link[:80])
         enviar_telegram(p, link, descripcion_es)
         historial.add(p["id"])
