@@ -184,73 +184,33 @@ def normalizar_titulo(titulo):
 #  BUSCAR OFERTAS
 # ─────────────────────────────────────────
 def buscar_ofertas(tasa_cambio):
-    mejores = {}
-    por_keyword = {}
-
-    for keyword in CATEGORIAS:
-        print(">>> Buscando: " + keyword)
-        por_keyword[keyword] = 0
-        try:
-            data = ali_request("aliexpress.affiliate.product.query", {
-                "tracking_id":     TRACKING_ID,
-                "keywords":        keyword,
-                "page_no":         str(random.randint(1, 5)),
-                "page_size":       "50",
-                "sort":            "LAST_VOLUME_DESC",
-                "ship_to_country": "ES",
-                "fields":          "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
+    print(">>> Probando API featuredpromo...")
+    data = ali_request("aliexpress.affiliate.featuredpromo.get", {
+        "tracking_id": TRACKING_ID,
+    })
+    try:
+        promos = data["aliexpress_affiliate_featuredpromo_get_response"]["resp_result"]["result"]["promos"]["promo"]
+        print(">>> " + str(len(promos)) + " campanas disponibles")
+        # Probar las primeras 5 campanas
+        for promo in promos[:5]:
+            nombre = promo["promo_name"]
+            print(">>> Probando: " + nombre)
+            data2 = ali_request("aliexpress.affiliate.featuredpromo.products.get", {
+                "tracking_id": TRACKING_ID,
+                "promo_name":  nombre,
+                "page_no":     "1",
+                "page_size":   "5",
+                "fields":      "product_id,product_title,sale_price,original_price",
             })
-            prods = (data["aliexpress_affiliate_product_query_response"]
-                        ["resp_result"]["result"]["products"]["product"])
-            print("    " + str(len(prods)) + " productos encontrados")
-        except (KeyError, TypeError) as e:
-            print("    Sin resultados: " + str(e))
-            time.sleep(1)
-            continue
-
-        prods_validos = []
-        for p in prods:
-            try:
-                precio_orig = round(float(str(p.get("original_price", "0")).replace(",", ".")) * tasa_cambio, 2)
-                precio_sale = round(float(str(p.get("sale_price", "0")).replace(",", ".")) * tasa_cambio, 2)
-                if precio_orig < MIN_PRECIO or precio_sale <= 0:
-                    continue
-                descuento = round((1 - precio_sale / precio_orig) * 100)
-                if descuento < MIN_DESCUENTO:
-                    continue
-                prods_validos.append((descuento, p, precio_orig, precio_sale))
-            except Exception as e:
-                print("  ERROR: " + str(e))
-
-        prods_validos.sort(key=lambda x: x[0], reverse=True)
-
-        for descuento, p, precio_orig, precio_sale in prods_validos:
-            if por_keyword[keyword] >= 2:
+            result = data2["aliexpress_affiliate_featuredpromo_products_get_response"]["resp_result"]
+            if result:
+                print("    FUNCIONA — " + str(result)[:150])
                 break
-            clave = normalizar_titulo(p.get("product_title", ""))
-            if clave in mejores:
-                continue
-            mejores[clave] = {
-                "id":          clave,
-                "product_id":  str(p["product_id"]),
-                "titulo":      p["product_title"][:80],
-                "imagen":      p["product_main_image_url"],
-                "precio_orig": precio_orig,
-                "precio_sale": precio_sale,
-                "descuento":   descuento,
-                "link_orig":   p["promotion_link"],
-                "keyword":     keyword,
-            }
-            por_keyword[keyword] += 1
-            print("    ✓ " + p.get("product_title","")[:45] + " (-" + str(descuento) + "%)")
-
-        time.sleep(1)
-
-    ofertas = list(mejores.values())
-    ofertas.sort(key=lambda x: x["descuento"], reverse=True)
-    print(">>> " + str(len(ofertas)) + " ofertas unicas (max 2 por keyword)")
-    return ofertas
-
+            else:
+                print("    Vacia")
+    except Exception as e:
+        print(">>> Error: " + str(e))
+    return []
 # ─────────────────────────────────────────
 #  HISTORIAL
 # ─────────────────────────────────────────
