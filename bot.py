@@ -185,53 +185,67 @@ def normalizar_titulo(titulo):
 # ─────────────────────────────────────────
 def buscar_ofertas(tasa_cambio):
     print(">>> Consultando API avanzada hotproduct...")
-    productos_raw = []
-    try:
-        data = ali_request("aliexpress.affiliate.hotproduct.query", {
-            "tracking_id":     TRACKING_ID,
-            "page_no":         str(random.randint(1, 10)),
-            "page_size":       "50",
-            "sort":            "LAST_VOLUME_DESC",
-            "ship_to_country": "ES",
-            "fields":          "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
-        })
-        productos_raw = (data["aliexpress_affiliate_hotproduct_query_response"]
-                            ["resp_result"]["result"]["products"]["product"])
-        print(">>> " + str(len(productos_raw)) + " productos recibidos")
-    except (KeyError, TypeError) as e:
-        print(">>> Error API avanzada: " + str(e))
-        print(">>> Respuesta: " + str(data)[:300])
-        return []
-
     mejores = {}
-    for p in productos_raw:
+    paginas_probadas = set()
+    intentos = 0
+    MAX_INTENTOS = 8  # maximo de paginas a consultar
+
+    while len(mejores) < 5 and intentos < MAX_INTENTOS:
+        # Elegir pagina aleatoria no repetida
+        pagina = random.randint(1, 20)
+        while pagina in paginas_probadas:
+            pagina = random.randint(1, 20)
+        paginas_probadas.add(pagina)
+        intentos += 1
+
+        print(">>> Pagina " + str(pagina) + " (intento " + str(intentos) + ", encontrados: " + str(len(mejores)) + ")")
         try:
-            precio_orig = round(float(str(p.get("original_price", "0")).replace(",", ".")) * tasa_cambio, 2)
-            precio_sale = round(float(str(p.get("sale_price", "0")).replace(",", ".")) * tasa_cambio, 2)
-            if precio_orig < MIN_PRECIO or precio_sale <= 0:
-                continue
-            descuento = round((1 - precio_sale / precio_orig) * 100)
-            if descuento < MIN_DESCUENTO:
-                continue
-            clave = normalizar_titulo(p.get("product_title", ""))
-            if clave not in mejores or descuento > mejores[clave]["descuento"]:
-                mejores[clave] = {
-                    "id":          clave,
-                    "product_id":  str(p["product_id"]),
-                    "titulo":      p["product_title"][:80],
-                    "imagen":      p["product_main_image_url"],
-                    "precio_orig": precio_orig,
-                    "precio_sale": precio_sale,
-                    "descuento":   descuento,
-                    "link_orig":   p.get("promotion_link", ""),
-                    "keyword":     "hotproduct",
-                }
-        except Exception as e:
-            print("  ERROR: " + str(e))
+            data = ali_request("aliexpress.affiliate.hotproduct.query", {
+                "tracking_id":     TRACKING_ID,
+                "page_no":         str(pagina),
+                "page_size":       "50",
+                "sort":            "LAST_VOLUME_DESC",
+                "ship_to_country": "ES",
+                "fields":          "product_id,product_title,product_main_image_url,sale_price,original_price,discount,promotion_link",
+            })
+            productos_raw = (data["aliexpress_affiliate_hotproduct_query_response"]
+                                ["resp_result"]["result"]["products"]["product"])
+            print("    " + str(len(productos_raw)) + " productos en esta pagina")
+        except (KeyError, TypeError) as e:
+            print("    Error: " + str(e))
+            time.sleep(1)
+            continue
+
+        for p in productos_raw:
+            try:
+                precio_orig = round(float(str(p.get("original_price", "0")).replace(",", ".")) * tasa_cambio, 2)
+                precio_sale = round(float(str(p.get("sale_price", "0")).replace(",", ".")) * tasa_cambio, 2)
+                if precio_orig < MIN_PRECIO or precio_sale <= 0:
+                    continue
+                descuento = round((1 - precio_sale / precio_orig) * 100)
+                if descuento < MIN_DESCUENTO:
+                    continue
+                clave = normalizar_titulo(p.get("product_title", ""))
+                if clave not in mejores or descuento > mejores[clave]["descuento"]:
+                    mejores[clave] = {
+                        "id":          clave,
+                        "product_id":  str(p["product_id"]),
+                        "titulo":      p["product_title"][:80],
+                        "imagen":      p["product_main_image_url"],
+                        "precio_orig": precio_orig,
+                        "precio_sale": precio_sale,
+                        "descuento":   descuento,
+                        "link_orig":   p.get("promotion_link", ""),
+                        "keyword":     "hotproduct",
+                    }
+            except Exception as e:
+                print("  ERROR: " + str(e))
+
+        time.sleep(1)
 
     ofertas = list(mejores.values())
     ofertas.sort(key=lambda x: x["descuento"], reverse=True)
-    print(">>> " + str(len(ofertas)) + " ofertas unicas con descuento >= " + str(MIN_DESCUENTO) + "%")
+    print(">>> " + str(len(ofertas)) + " ofertas unicas tras " + str(intentos) + " paginas consultadas")
     return ofertas
 # ─────────────────────────────────────────
 #  HISTORIAL
