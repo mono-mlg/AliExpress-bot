@@ -29,15 +29,15 @@ CATEGORIAS = [
 # ─────────────────────────────────────────
 #  TIPO DE CAMBIO CNY -> EUR
 # ─────────────────────────────────────────
-def obtener_tipo_cambio_cny_eur():
-    try:
-        r = requests.get("https://api.exchangerate-api.com/v4/latest/CNY", timeout=10)
-        tasa = r.json()["rates"]["EUR"]
-        print(">>> Tipo de cambio CNY->EUR: " + str(round(tasa, 5)))
-        return tasa
-    except Exception as e:
-        print(">>> Advertencia tipo de cambio: " + str(e) + " — usando 0.128")
-        return 0.128
+#def obtener_tipo_cambio_cny_eur():
+#    try:
+#        r = requests.get("https://api.exchangerate-api.com/v4/latest/CNY", timeout=10)
+#        tasa = r.json()["rates"]["EUR"]
+#        print(">>> Tipo de cambio CNY->EUR: " + str(round(tasa, 5)))
+#        return tasa
+#    except Exception as e:
+#        print(">>> Advertencia tipo de cambio: " + str(e) + " — usando 0.128")
+#        return 0.128
 
 # ─────────────────────────────────────────
 #  FIRMA MD5
