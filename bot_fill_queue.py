@@ -73,7 +73,7 @@ def leer_cola_github():
     lineas = [l.strip() for l in contenido.split("\n") if l.strip() and not l.startswith("#")]
     return lineas, sha
 
-defdef guardar_cola_github(lineas, sha):
+def guardar_cola_github(lineas, sha):
     url = f"https://api.github.com/repos/{GH_USER}/{GH_REPO}/contents/cola.txt"
     header = "# Cola de publicacion MultiChollos\n# Un enlace por linea\n"
     contenido = header + "\n".join(lineas) + ("\n" if lineas else "")
