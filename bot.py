@@ -286,13 +286,13 @@ def obtener_cupon(precio_sale):
 #  FORMATEAR MENSAJE
 # ─────────────────────────────────────────
 def formatear_mensaje(p, link, descripcion_es):
+    cupon = obtener_cupon(p["precio_sale"])
     linea_cupon = ""
-    precio_final = p["precio_sale"]
-    if CUPON_FIJO:
-        precio_final = round(p["precio_sale"] * 0.95, 2)
-        linea_cupon = "\n🏷️ *DESCUENTO EXTRA*\n"
-        linea_cupon += "✂️ Cupon: `" + CUPON_FIJO + "`\n"
-        linea_cupon += "🔥💵 Precio FINAL con cupon: *~" + str(precio_final) + "€*\n"
+    if cupon:
+        precio_final = round(p["precio_sale"] - cupon["descuento"], 2)
+        linea_cupon = "\n🏷️ *DESCUENTO EXTRA CON CUPÓN*\n"
+        linea_cupon += "✂️ Cupón: `" + cupon["cupon"] + "`\n"
+        linea_cupon += "🔥💵 Precio FINAL con cupón: *~" + str(precio_final) + "€*\n"
 
     msg = "🔥 ‼️*BAJADA DE PRECIO*‼️ #Aliexpress\n\n"
     msg += "📦 " + descripcion_es + "\n\n"
