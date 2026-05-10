@@ -1,0 +1,5 @@
+[
+  {"min": 80, "cupon": "MAYO8", "descuento": 8},
+  {"min": 40, "cupon": "MAYO4", "descuento": 4},
+  {"min": 20, "cupon": "MAYO2", "descuento": 2}
+]
