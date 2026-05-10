@@ -259,6 +259,28 @@ def cargar_historial():
 def guardar_historial(ids):
     with open(HISTORIAL_FILE, "w") as f:
         json.dump(list(ids)[-500:], f)
+# ─────────────────────────────────────────
+#  OBTENER CUPÓN 
+# ─────────────────────────────────────────
+
+def obtener_cupon(precio_sale):
+    """Selecciona el cupón correcto según el precio de oferta."""
+    if not Path("cupones.json").exists():
+        return None
+    try:
+        with open("cupones.json") as f:
+            tramos = json.load(f)
+        # Ordenar de mayor a menor para coger el mejor cupón posible
+        tramos.sort(key=lambda x: x["min"], reverse=True)
+        for tramo in tramos:
+            if precio_sale >= tramo["min"]:
+                return tramo
+        return None
+    except Exception as e:
+        print("    Advertencia cupones: " + str(e))
+        return None
+
+
 
 # ─────────────────────────────────────────
 #  FORMATEAR MENSAJE
