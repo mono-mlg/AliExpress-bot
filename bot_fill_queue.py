@@ -184,6 +184,19 @@ def buscar_ofertas(tasa_cambio, historial):
 def main():
     print("=== Bot Fill Queue iniciado " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " ===")
 
+    # DIAGNOSTICO GITHUB
+    print(">>> Verificando acceso a GitHub...")
+    print("    GH_USER: " + GH_USER)
+    print("    GH_REPO: " + GH_REPO)
+    print("    GH_TOKEN definido: " + ("SI" if GH_TOKEN else "NO"))
+    test = requests.get(
+        f"https://api.github.com/repos/{GH_USER}/{GH_REPO}/contents/cola.txt",
+        headers=GH_HEADERS, timeout=15
+    )
+    print("    Status cola.txt: " + str(test.status_code))
+    print("    Respuesta: " + test.text[:200])
+    print("=== Bot Fill Queue iniciado " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " ===")
+
     tasa_cambio = obtener_tipo_cambio()
     historial = cargar_historial()
     print(">>> Historial local: " + str(len(historial)) + " productos ya publicados")
