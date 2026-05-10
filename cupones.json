@@ -1,5 +1,8 @@
 [
-  {"min": 80, "cupon": "MAYO8", "descuento": 8},
-  {"min": 40, "cupon": "MAYO4", "descuento": 4},
-  {"min": 20, "cupon": "MAYO2", "descuento": 2}
+  {"min": 15, "cupon": "SRAE02", "descuento": 2},
+  {"min": 29, "cupon": "SRAE03", "descuento": 3},
+  {"min": 45, "cupon": "SRAE05", "descuento": 5},
+  {"min": 69, "cupon": "SRAE07", "descuento": 7},
+  {"min": 149, "cupon": "SRAE17", "descuento": 17},
+  {"min": 249, "cupon": "SRAE30", "descuento": 30}
 ]
