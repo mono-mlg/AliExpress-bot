@@ -92,6 +92,43 @@ def guardar_cola_github(lineas, sha):
         return False
     return True
 
+
+# ─────────────────────────────────────────
+#  HISTORIAL COMPARTIDO EN GITHUB
+# ─────────────────────────────────────────
+def leer_historial_github():
+    url = f"https://api.github.com/repos/{GH_USER}/{GH_REPO}/contents/historial.json"
+    r = requests.get(url, headers=GH_HEADERS, timeout=15)
+    if r.status_code == 404:
+        return set(), None
+    data = r.json()
+    contenido = base64.b64decode(data["content"]).decode("utf-8")
+    sha = data["sha"]
+    return set(json.loads(contenido)), sha
+
+def guardar_historial_github(ids, sha):
+    url = f"https://api.github.com/repos/{GH_USER}/{GH_REPO}/contents/historial.json"
+    lista = list(ids)[-500:]
+    contenido = json.dumps(lista)
+    encoded = base64.b64encode(contenido.encode("utf-8")).decode("utf-8")
+    payload = {
+        "message": "📝 Historial actualizado por Railway " + datetime.now().strftime("%H:%M"),
+        "content": encoded,
+        "sha": sha
+    }
+    r = requests.put(url, headers=GH_HEADERS, json=payload, timeout=15)
+    if r.status_code not in (200, 201):
+        print("    Error guardando historial: " + str(r.status_code))
+        return None
+    return r.json()["content"]["sha"]
+
+def normalizar_titulo(titulo):
+    import re as _re
+    titulo = titulo.lower()
+    titulo = _re.sub(r"[^a-z0-9 ]", " ", titulo)
+    palabras = [p for p in titulo.split() if len(p) > 2]
+    return " ".join(palabras[:5])
+
 # ─────────────────────────────────────────
 #  EXTRAER PRODUCT ID
 # ─────────────────────────────────────────
@@ -319,7 +356,10 @@ def enviar_telegram(p, link, descripcion_es):
 def publicar_siguiente():
     print("\n--- Ciclo " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " ---")
     try:
-        cola, sha = leer_cola_github()
+        historial, sha_hist = leer_historial_github()
+        print(">>> Historial: " + str(len(historial)) + " productos ya publicados")
+
+        cola, sha_cola = leer_cola_github()
         print(">>> " + str(len(cola)) + " URLs en la cola")
 
         if not cola:
@@ -333,14 +373,22 @@ def publicar_siguiente():
         if not product_id:
             print("    Saltando — no se pudo extraer ID")
             cola.pop(0)
-            guardar_cola_github(cola, sha)
+            guardar_cola_github(cola, sha_cola)
             return
 
         producto = obtener_producto(product_id)
         if not producto:
             print("    Saltando — no se pudieron obtener datos")
             cola.pop(0)
-            guardar_cola_github(cola, sha)
+            guardar_cola_github(cola, sha_cola)
+            return
+
+        # Comprobar si ya fue publicado
+        clave = normalizar_titulo(producto["titulo"])
+        if clave in historial:
+            print("    Saltando — producto ya publicado anteriormente")
+            cola.pop(0)
+            guardar_cola_github(cola, sha_cola)
             return
 
         url_base = producto["link_orig"] if producto["link_orig"] else "https://www.aliexpress.com/item/" + producto["id"] + ".html"
@@ -351,8 +399,12 @@ def publicar_siguiente():
 
         enviar_telegram(producto, link, descripcion_es)
 
+        # Actualizar historial y cola
+        historial.add(clave)
+        sha_hist = guardar_historial_github(historial, sha_hist)
+
         cola.pop(0)
-        if guardar_cola_github(cola, sha):
+        if guardar_cola_github(cola, sha_cola):
             print(">>> Cola actualizada: " + str(len(cola)) + " URLs restantes")
 
     except Exception as e:
