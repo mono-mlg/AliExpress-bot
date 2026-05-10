@@ -12,7 +12,8 @@ GH_TOKEN       = os.environ["GH_TOKEN"]
 GH_USER        = os.environ["GH_USER"]
 GH_REPO        = os.environ["GH_REPO"]
 HISTORIAL_FILE = "historial.json"
-MAX_EN_COLA    = 30    # maximo de productos a meter en la cola por ejecucion
+MAX_EN_COLA    = 30
+MAX_INTENTOS   = 20   # ← subir de 8 a 20
 MIN_DESCUENTO  = 30
 MIN_PRECIO     = 5.0
 ALI_API_URL    = "https://api-sg.aliexpress.com/sync"
@@ -72,7 +73,7 @@ def leer_cola_github():
     lineas = [l.strip() for l in contenido.split("\n") if l.strip() and not l.startswith("#")]
     return lineas, sha
 
-def guardar_cola_github(lineas, sha):
+defdef guardar_cola_github(lineas, sha):
     url = f"https://api.github.com/repos/{GH_USER}/{GH_REPO}/contents/cola.txt"
     header = "# Cola de publicacion MultiChollos\n# Un enlace por linea\n"
     contenido = header + "\n".join(lineas) + ("\n" if lineas else "")
@@ -80,8 +81,9 @@ def guardar_cola_github(lineas, sha):
     payload = {
         "message": "📋 Cola rellenada automaticamente " + datetime.now().strftime("%Y-%m-%d %H:%M"),
         "content": encoded,
-        "sha": sha
     }
+    if sha:  # solo añadir sha si el archivo ya existe
+        payload["sha"] = sha
     r = requests.put(url, headers=GH_HEADERS, json=payload, timeout=15)
     if r.status_code not in (200, 201):
         print("    Error guardando cola: " + str(r.status_code) + " " + r.text[:200])
