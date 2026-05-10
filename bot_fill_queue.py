@@ -188,13 +188,33 @@ def main():
     print(">>> Verificando acceso a GitHub...")
     print("    GH_USER: " + GH_USER)
     print("    GH_REPO: " + GH_REPO)
-    print("    GH_TOKEN definido: " + ("SI" if GH_TOKEN else "NO"))
-    test = requests.get(
+    print("    GH_TOKEN primeros 4 chars: " + GH_TOKEN[:4])
+
+    # Test 1: verificar acceso al repo
+    test_repo = requests.get(
+        f"https://api.github.com/repos/{GH_USER}/{GH_REPO}",
+        headers=GH_HEADERS, timeout=15
+    )
+    print("    Status repo: " + str(test_repo.status_code))
+
+    # Test 2: listar archivos en la raiz
+    test_lista = requests.get(
+        f"https://api.github.com/repos/{GH_USER}/{GH_REPO}/contents/",
+        headers=GH_HEADERS, timeout=15
+    )
+    print("    Status listado raiz: " + str(test_lista.status_code))
+    if test_lista.status_code == 200:
+        archivos = [f["name"] for f in test_lista.json()]
+        print("    Archivos encontrados: " + str(archivos))
+
+    # Test 3: acceso directo a cola.txt
+    test_cola = requests.get(
         f"https://api.github.com/repos/{GH_USER}/{GH_REPO}/contents/cola.txt",
         headers=GH_HEADERS, timeout=15
     )
-    print("    Status cola.txt: " + str(test.status_code))
-    print("    Respuesta: " + test.text[:200])
+    print("    Status cola.txt: " + str(test_cola.status_code))
+    print("    Respuesta cola.txt: " + test_cola.text[:300])
+    
     print("=== Bot Fill Queue iniciado " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " ===")
 
     tasa_cambio = obtener_tipo_cambio()
