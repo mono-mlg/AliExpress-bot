@@ -13,8 +13,7 @@ GH_USER        = os.environ["GH_USER"]
 GH_REPO        = os.environ["GH_REPO"]
 HISTORIAL_FILE = "historial.json"
 MAX_EN_COLA    = 30
-MAX_INTENTOS   = 20   # ← subir de 8 a 20
-MIN_DESCUENTO  = 30
+MIN_DESCUENTO  = 20
 MIN_PRECIO     = 5.0
 ALI_API_URL    = "https://api-sg.aliexpress.com/sync"
 
@@ -22,6 +21,23 @@ GH_HEADERS = {
     "Authorization": "token " + GH_TOKEN,
     "Accept": "application/vnd.github.v3+json"
 }
+
+# Categorias principales de AliExpress con sus IDs
+# Obtenidos via aliexpress.affiliate.category.get
+CATEGORIAS_IDS = [
+    ("200000783", "Telefonia y accesorios"),
+    ("200000828", "Electronica de consumo"),
+    ("200003498", "Informatica"),
+    ("200000572", "Hogar y jardin"),
+    ("200000519", "Ropa hombre"),
+    ("200000520", "Ropa mujer"),
+    ("200001075", "Deportes y ocio"),
+    ("200000797", "Belleza y salud"),
+    ("200000336", "Juguetes y hobbies"),
+    ("200000739", "Joyeria y relojes"),
+    ("200000606", "Herramientas"),
+    ("200000640", "Automovil y moto"),
+]
 
 # ─────────────────────────────────────────
 #  TIPO DE CAMBIO
@@ -82,7 +98,7 @@ def guardar_cola_github(lineas, sha):
         "message": "📋 Cola rellenada automaticamente " + datetime.now().strftime("%Y-%m-%d %H:%M"),
         "content": encoded,
     }
-    if sha:  # solo añadir sha si el archivo ya existe
+    if sha:
         payload["sha"] = sha
     r = requests.put(url, headers=GH_HEADERS, json=payload, timeout=15)
     if r.status_code not in (200, 201):
@@ -113,23 +129,52 @@ def normalizar_titulo(titulo):
     return " ".join(palabras[:5])
 
 # ─────────────────────────────────────────
-#  BUSCAR OFERTAS (hotproduct API avanzada)
+#  PROCESAR PRODUCTOS RAW
 # ─────────────────────────────────────────
-def buscar_ofertas(tasa_cambio, historial):
-    print(">>> Buscando ofertas con API avanzada...")
-    mejores = {}
+def procesar_productos(productos_raw, tasa_cambio, historial, mejores):
+    nuevos = 0
+    for p in productos_raw:
+        try:
+            precio_orig = round(float(str(p.get("original_price", "0")).replace(",", ".")) * tasa_cambio, 2)
+            precio_sale = round(float(str(p.get("sale_price", "0")).replace(",", ".")) * tasa_cambio, 2)
+            if precio_orig < MIN_PRECIO or precio_sale <= 0:
+                continue
+            descuento = round((1 - precio_sale / precio_orig) * 100)
+            if descuento < MIN_DESCUENTO:
+                continue
+            clave = normalizar_titulo(p.get("product_title", ""))
+            if clave in historial or clave in mejores:
+                continue
+            link = p.get("promotion_link", "")
+            if not link:
+                link = "https://www.aliexpress.com/item/" + str(p["product_id"]) + ".html"
+            mejores[clave] = {
+                "clave":     clave,
+                "link":      link,
+                "titulo":    p.get("product_title", "")[:60],
+                "descuento": descuento,
+            }
+            nuevos += 1
+        except Exception as e:
+            print("  ERROR procesando producto: " + str(e))
+    return nuevos
+
+# ─────────────────────────────────────────
+#  FUENTE 1: hotproduct.query (paginas aleatorias)
+# ─────────────────────────────────────────
+def buscar_hotproduct_query(tasa_cambio, historial, mejores):
+    print(">>> [1/3] hotproduct.query — paginas aleatorias")
     paginas_probadas = set()
     intentos = 0
-    MAX_INTENTOS = 8
+    MAX_INTENTOS = 10
 
     while len(mejores) < MAX_EN_COLA and intentos < MAX_INTENTOS:
-        pagina = random.randint(1, 20)
+        pagina = random.randint(1, 40)
         while pagina in paginas_probadas:
-            pagina = random.randint(1, 20)
+            pagina = random.randint(1, 40)
         paginas_probadas.add(pagina)
         intentos += 1
 
-        print(">>> Pagina " + str(pagina) + " (intento " + str(intentos) + ", encontrados: " + str(len(mejores)) + ")")
         try:
             data = ali_request("aliexpress.affiliate.hotproduct.query", {
                 "tracking_id":     TRACKING_ID,
@@ -137,46 +182,87 @@ def buscar_ofertas(tasa_cambio, historial):
                 "page_size":       "50",
                 "sort":            "LAST_VOLUME_DESC",
                 "ship_to_country": "ES",
-                "fields":          "product_id,product_title,product_main_image_url,sale_price,original_price,promotion_link",
+                "fields":          "product_id,product_title,sale_price,original_price,promotion_link",
             })
             productos_raw = (data["aliexpress_affiliate_hotproduct_query_response"]
                                 ["resp_result"]["result"]["products"]["product"])
-            print("    " + str(len(productos_raw)) + " productos en esta pagina")
+            nuevos = procesar_productos(productos_raw, tasa_cambio, historial, mejores)
+            print("    Pagina " + str(pagina) + " — " + str(len(productos_raw)) + " productos, " + str(nuevos) + " nuevos (total: " + str(len(mejores)) + ")")
         except (KeyError, TypeError) as e:
-            print("    Error: " + str(e))
-            time.sleep(1)
-            continue
+            print("    Pagina " + str(pagina) + " — Error: " + str(e))
 
-        for p in productos_raw:
-            try:
-                precio_orig = round(float(str(p.get("original_price", "0")).replace(",", ".")) * tasa_cambio, 2)
-                precio_sale = round(float(str(p.get("sale_price", "0")).replace(",", ".")) * tasa_cambio, 2)
-                if precio_orig < MIN_PRECIO or precio_sale <= 0:
-                    continue
-                descuento = round((1 - precio_sale / precio_orig) * 100)
-                if descuento < MIN_DESCUENTO:
-                    continue
-                clave = normalizar_titulo(p.get("product_title", ""))
-                if clave in historial or clave in mejores:
-                    continue
-                link = p.get("promotion_link", "")
-                if not link:
-                    link = "https://www.aliexpress.com/item/" + str(p["product_id"]) + ".html"
-                mejores[clave] = {
-                    "clave": clave,
-                    "link":  link,
-                    "titulo": p.get("product_title", "")[:60],
-                    "descuento": descuento,
-                }
-            except Exception as e:
-                print("  ERROR: " + str(e))
+        time.sleep(0.5)
 
-        time.sleep(1)
+    print("    Subtotal tras hotproduct.query: " + str(len(mejores)) + " productos")
 
-    ofertas = list(mejores.values())
-    ofertas.sort(key=lambda x: x["descuento"], reverse=True)
-    print(">>> " + str(len(ofertas)) + " ofertas nuevas encontradas")
-    return ofertas
+# ─────────────────────────────────────────
+#  FUENTE 2: hotproduct.download (por categorias)
+# ─────────────────────────────────────────
+def buscar_hotproduct_download(tasa_cambio, historial, mejores):
+    if len(mejores) >= MAX_EN_COLA:
+        return
+    print(">>> [2/3] hotproduct.download — por categorias")
+
+    cats = random.sample(CATEGORIAS_IDS, min(6, len(CATEGORIAS_IDS)))
+    for cat_id, cat_nombre in cats:
+        if len(mejores) >= MAX_EN_COLA:
+            break
+        try:
+            data = ali_request("aliexpress.affiliate.hotproduct.download", {
+                "tracking_id":     TRACKING_ID,
+                "category_ids":    cat_id,
+                "page_no":         str(random.randint(1, 10)),
+                "page_size":       "50",
+                "ship_to_country": "ES",
+                "fields":          "product_id,product_title,sale_price,original_price,promotion_link",
+            })
+            productos_raw = (data["aliexpress_affiliate_hotproduct_download_response"]
+                                ["resp_result"]["result"]["products"]["product"])
+            nuevos = procesar_productos(productos_raw, tasa_cambio, historial, mejores)
+            print("    " + cat_nombre + " — " + str(len(productos_raw)) + " productos, " + str(nuevos) + " nuevos (total: " + str(len(mejores)) + ")")
+        except (KeyError, TypeError) as e:
+            print("    " + cat_nombre + " — Sin resultados: " + str(e))
+
+        time.sleep(0.5)
+
+    print("    Subtotal tras hotproduct.download: " + str(len(mejores)) + " productos")
+
+# ─────────────────────────────────────────
+#  FUENTE 3: smartmatch (por keywords relevantes)
+# ─────────────────────────────────────────
+def buscar_smartmatch(tasa_cambio, historial, mejores):
+    if len(mejores) >= MAX_EN_COLA:
+        return
+    print(">>> [3/3] smartmatch — por keywords")
+
+    keywords = [
+        "smartphone", "smartwatch", "earbuds", "laptop", "tablet",
+        "air fryer", "robot vacuum", "led lights", "perfume", "sneakers"
+    ]
+    random.shuffle(keywords)
+
+    for kw in keywords:
+        if len(mejores) >= MAX_EN_COLA:
+            break
+        try:
+            data = ali_request("aliexpress.affiliate.smartmatch.product.query", {
+                "tracking_id":  TRACKING_ID,
+                "keywords":     kw,
+                "page_no":      "1",
+                "page_size":    "20",
+                "country":      "ES",
+                "fields":       "product_id,product_title,sale_price,original_price,promotion_link",
+            })
+            productos_raw = (data["aliexpress_affiliate_smartmatch_product_query_response"]
+                                ["resp_result"]["result"]["products"]["product"])
+            nuevos = procesar_productos(productos_raw, tasa_cambio, historial, mejores)
+            print("    '" + kw + "' — " + str(len(productos_raw)) + " productos, " + str(nuevos) + " nuevos (total: " + str(len(mejores)) + ")")
+        except (KeyError, TypeError) as e:
+            print("    '" + kw + "' — Sin resultados: " + str(e))
+
+        time.sleep(0.5)
+
+    print("    Subtotal tras smartmatch: " + str(len(mejores)) + " productos")
 
 # ─────────────────────────────────────────
 #  MAIN
@@ -184,50 +270,27 @@ def buscar_ofertas(tasa_cambio, historial):
 def main():
     print("=== Bot Fill Queue iniciado " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " ===")
 
-    # DIAGNOSTICO GITHUB
-    print(">>> Verificando acceso a GitHub...")
-    print("    GH_USER: " + GH_USER)
-    print("    GH_REPO: " + GH_REPO)
-    print("    GH_TOKEN primeros 4 chars: " + GH_TOKEN[:4])
-
-    # Test 1: verificar acceso al repo
-    test_repo = requests.get(
-        f"https://api.github.com/repos/{GH_USER}/{GH_REPO}",
-        headers=GH_HEADERS, timeout=15
-    )
-    print("    Status repo: " + str(test_repo.status_code))
-
-    # Test 2: listar archivos en la raiz
-    test_lista = requests.get(
-        f"https://api.github.com/repos/{GH_USER}/{GH_REPO}/contents/",
-        headers=GH_HEADERS, timeout=15
-    )
-    print("    Status listado raiz: " + str(test_lista.status_code))
-    if test_lista.status_code == 200:
-        archivos = [f["name"] for f in test_lista.json()]
-        print("    Archivos encontrados: " + str(archivos))
-
-    # Test 3: acceso directo a cola.txt
-    test_cola = requests.get(
-        f"https://api.github.com/repos/{GH_USER}/{GH_REPO}/contents/cola.txt",
-        headers=GH_HEADERS, timeout=15
-    )
-    print("    Status cola.txt: " + str(test_cola.status_code))
-    print("    Respuesta cola.txt: " + test_cola.text[:300])
-    
-    print("=== Bot Fill Queue iniciado " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + " ===")
-
     tasa_cambio = obtener_tipo_cambio()
     historial = cargar_historial()
     print(">>> Historial local: " + str(len(historial)) + " productos ya publicados")
 
-    # Leer cola actual para no añadir duplicados
     cola_actual, sha_cola = leer_cola_github()
     urls_en_cola = set(cola_actual)
     print(">>> Cola actual: " + str(len(cola_actual)) + " productos pendientes")
 
-    # Buscar ofertas nuevas
-    ofertas = buscar_ofertas(tasa_cambio, historial)
+    if len(cola_actual) >= MAX_EN_COLA:
+        print(">>> Cola ya tiene " + str(len(cola_actual)) + " productos, no es necesario rellenar")
+        return
+
+    # Buscar con las 3 fuentes en cascada
+    mejores = {}
+    buscar_hotproduct_query(tasa_cambio, historial, mejores)
+    buscar_hotproduct_download(tasa_cambio, historial, mejores)
+    buscar_smartmatch(tasa_cambio, historial, mejores)
+
+    ofertas = list(mejores.values())
+    ofertas.sort(key=lambda x: x["descuento"], reverse=True)
+    print(">>> " + str(len(ofertas)) + " ofertas nuevas encontradas en total")
 
     # Añadir a la cola solo las que no estén ya
     nuevas_urls = []
@@ -242,15 +305,13 @@ def main():
         print(">>> Nada nuevo que añadir a la cola")
         return
 
-    # Actualizar cola en GitHub
     cola_actualizada = cola_actual + nuevas_urls
     if guardar_cola_github(cola_actualizada, sha_cola):
-        print(">>> Cola actualizada: " + str(len(cola_actualizada)) + " productos en total (" + str(len(nuevas_urls)) + " nuevos)")
+        print(">>> Cola actualizada: " + str(len(cola_actualizada)) + " productos (" + str(len(nuevas_urls)) + " nuevos)")
     else:
         print(">>> Error al guardar la cola")
         return
 
-    # Actualizar historial local para que el siguiente workflow no repita
     for clave in nuevas_claves:
         historial.add(clave)
     guardar_historial(historial)
