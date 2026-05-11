@@ -36,8 +36,8 @@ jobs:
           ALI_APP_SECRET:   ${{ secrets.ALI_APP_SECRET }}
           ALI_TRACKING_ID:  ${{ secrets.ALI_TRACKING_ID }}
           GH_TOKEN:         ${{ secrets.GH_TOKEN }}
-          GH_USER:          ${{ secrets.GH_USER }}
-          GH_REPO:          ${{ secrets.GH_REPO }}
+          GH_USER:          mono-mlg
+          GH_REPO:          AliExpress-bot
         run: python bot_fill_queue.py
 
       - name: 💾 Guardar historial
