@@ -315,6 +315,13 @@ def main():
     for clave in nuevas_claves:
         historial.add(clave)
     guardar_historial(historial)
+
+    # VERIFICAR QUE SE GUARDO CORRECTAMENTE
+    cola_verificada, _ = leer_cola_github()
+    print(">>> Verificacion: cola.txt tiene ahora " + str(len(cola_verificada)) + " lineas en GitHub")
+    for url in cola_verificada[:3]:
+        print("    " + url[:70])
+    
     print("=== Fin: " + str(len(nuevas_urls)) + " productos añadidos a la cola ===")
 
 if __name__ == "__main__":
