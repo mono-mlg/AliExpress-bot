@@ -79,31 +79,17 @@ def ali_request(method, extra):
 #  GITHUB — COLA
 # ─────────────────────────────────────────
 def leer_cola_github():
-    url = f"https://api.github.com/repos/{GH_USER}/{GH_REPO}/contents/cola.txt"
-    r = requests.get(url, headers=GH_HEADERS, timeout=15)
-    if r.status_code == 404:
+    if not Path("cola.txt").exists():
         return [], None
-    data = r.json()
-    contenido = base64.b64decode(data["content"]).decode("utf-8")
-    sha = data["sha"]
-    lineas = [l.strip() for l in contenido.split("\n") if l.strip() and not l.startswith("#")]
-    return lineas, sha
+    with open("cola.txt") as f:
+        lineas = [l.strip() for l in f if l.strip() and not l.startswith("#")]
+    return lineas, "local"
 
 def guardar_cola_github(lineas, sha):
-    url = f"https://api.github.com/repos/{GH_USER}/{GH_REPO}/contents/cola.txt"
     header = "# Cola de publicacion MultiChollos\n# Un enlace por linea\n"
     contenido = header + "\n".join(lineas) + ("\n" if lineas else "")
-    encoded = base64.b64encode(contenido.encode("utf-8")).decode("utf-8")
-    payload = {
-        "message": "📋 Cola rellenada automaticamente " + datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "content": encoded,
-    }
-    if sha:
-        payload["sha"] = sha
-    r = requests.put(url, headers=GH_HEADERS, json=payload, timeout=15)
-    if r.status_code not in (200, 201):
-        print("    Error guardando cola: " + str(r.status_code) + " " + r.text[:200])
-        return False
+    with open("cola.txt", "w") as f:
+        f.write(contenido)
     return True
 
 # ─────────────────────────────────────────
@@ -316,13 +302,6 @@ def main():
         historial.add(clave)
     guardar_historial(historial)
 
-    # VERIFICAR QUE SE GUARDO CORRECTAMENTE
-    cola_verificada, _ = leer_cola_github()
-    print(">>> Verificacion: cola.txt tiene ahora " + str(len(cola_verificada)) + " lineas en GitHub")
-    for url in cola_verificada[:3]:
-        print("    " + url[:70])
-    
-    print("=== Fin: " + str(len(nuevas_urls)) + " productos añadidos a la cola ===")
 
 if __name__ == "__main__":
     main()
