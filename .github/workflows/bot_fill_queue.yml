@@ -40,13 +40,13 @@ jobs:
           GH_REPO:          AliExpress-bot
         run: python bot_fill_queue.py
 
-      - name: 💾 Guardar historial
+      - name: 💾 Guardar historial y cola
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main
           git show origin/main:historial.json > historial_remoto.json 2>/dev/null || echo "[]" > historial_remoto.json
           python3 merge_historial.py
-          git add historial.json
-          git diff --staged --quiet || git commit -m "📝 Historial actualizado $(date +'%Y-%m-%d %H:%M')"
+          git add historial.json cola.txt
+          git diff --staged --quiet || git commit -m "📝 Historial y cola actualizados $(date +'%Y-%m-%d %H:%M')"
           git push --force-with-lease
