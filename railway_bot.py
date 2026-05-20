@@ -3,6 +3,35 @@ from datetime import datetime
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
+
+import sys
+print("=== DIAGNOSTICO ARRANQUE ===")
+print("Python: " + sys.version)
+print("GH_TOKEN en env: " + str("GH_TOKEN" in os.environ))
+print("GH_USER en env: " + str("GH_USER" in os.environ))
+print("GH_REPO en env: " + str("GH_REPO" in os.environ))
+if "GH_TOKEN" in os.environ:
+    print("GH_TOKEN longitud: " + str(len(os.environ["GH_TOKEN"])))
+    print("GH_TOKEN primeros 8: " + os.environ["GH_TOKEN"][:8])
+if "GH_USER" in os.environ:
+    print("GH_USER valor: " + os.environ["GH_USER"])
+if "GH_REPO" in os.environ:
+    print("GH_REPO valor: " + os.environ["GH_REPO"])
+
+# Test directo sin usar variables del script
+import requests as _req
+_token = os.environ.get("GH_TOKEN", "")
+_user = os.environ.get("GH_USER", "")
+_repo = os.environ.get("GH_REPO", "")
+_url = f"https://api.github.com/repos/{_user}/{_repo}/contents/cola.txt"
+print("URL de prueba: " + _url)
+_r = _req.get(_url, headers={"Authorization": "token " + _token, "Accept": "application/vnd.github.v3+json"}, timeout=15)
+print("Status prueba directa: " + str(_r.status_code))
+print("Respuesta: " + _r.text[:300])
+print("=== FIN DIAGNOSTICO ===")
+
+
+
 # ─────────────────────────────────────────
 #  CONFIGURACION
 # ─────────────────────────────────────────
