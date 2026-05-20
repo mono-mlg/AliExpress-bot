@@ -67,13 +67,17 @@ GH_HEADERS = {
 
 def leer_cola_github():
     url = f"https://api.github.com/repos/{GH_USER}/{GH_REPO}/contents/cola.txt"
+    print("    URL: " + url)
     r = requests.get(url, headers=GH_HEADERS, timeout=15)
-    if r.status_code == 404:
+    print("    Status: " + str(r.status_code))
+    print("    Respuesta: " + r.text[:300])
+    if r.status_code != 200:
         return [], None
     data = r.json()
     contenido = base64.b64decode(data["content"]).decode("utf-8")
     sha = data["sha"]
     lineas = [l.strip() for l in contenido.split("\n") if l.strip() and not l.startswith("#")]
+    print("    Lineas encontradas: " + str(len(lineas)))
     return lineas, sha
 
 def guardar_cola_github(lineas, sha):
