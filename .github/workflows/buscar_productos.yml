@@ -1,0 +1,61 @@
+name: 🔍 Buscar Productos
+
+on:
+  workflow_dispatch:
+    inputs:
+      keyword:
+        description: "Palabra clave de búsqueda"
+        required: true
+        default: "smartwatch"
+      min_descuento:
+        description: "Descuento mínimo (%)"
+        required: false
+        default: "20"
+      min_precio:
+        description: "Precio mínimo (€)"
+        required: false
+        default: "5"
+      sort:
+        description: "Ordenar por"
+        required: false
+        default: "LAST_VOLUME_DESC"
+        type: choice
+        options:
+          - LAST_VOLUME_DESC
+          - SALE_PRICE_ASC
+          - SALE_PRICE_DESC
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  buscar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🐍 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 📦 Dependencias
+        run: pip install requests
+
+      - name: 🔍 Buscar productos
+        env:
+          ALI_APP_KEY:      ${{ secrets.ALI_APP_KEY }}
+          ALI_APP_SECRET:   ${{ secrets.ALI_APP_SECRET }}
+          ALI_TRACKING_ID:  ${{ secrets.ALI_TRACKING_ID }}
+          GH_TOKEN:         ${{ secrets.GH_TOKEN }}
+          GH_USER:          mono-mlg
+          GH_REPO:          AliExpress-bot
+          KEYWORD:          ${{ github.event.inputs.keyword }}
+          MIN_DESCUENTO:    ${{ github.event.inputs.min_descuento }}
+          MIN_PRECIO:       ${{ github.event.inputs.min_precio }}
+          SORT:             ${{ github.event.inputs.sort }}
+          MAX_RESULTADOS:   "30"
+        run: python buscar_productos.py
