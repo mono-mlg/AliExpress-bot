@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MultiChollos Gestor</title>
+<style>
+:root {
+  --bg: #080808; --surface: #111; --s2: #181818; --border: #222;
+  --accent: #f5c200; --accent2: #ff4500; --text: #f0f0f0;
+  --muted: #555; --green: #00e676; --red: #ff4444; --r: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: Arial, sans-serif; }
+.header { background: #111; border-bottom: 2px solid var(--accent); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.logo { font-size: 1.2rem; font-weight: 900; letter-spacing: 2px; color: var(--accent); }
+.tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); }
+.tab { flex: 1; padding: 12px 6px; text-align: center; font-size: .82rem; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.section { display: none; padding: 14px; }
+.section.active { display: block; }
+input, select { background: var(--s2); border: 1px solid var(--border); color: var(--text); padding: 10px 12px; border-radius: var(--r); font-size: .88rem; outline: none; width: 100%; }
+input:focus, select:focus { border-color: var(--accent); }
+.btn { border: none; padding: 10px 16px; border-radius: var(--r); font-size: .85rem; font-weight: 700; cursor: pointer; }
+.btn-y { background: var(--accent); color: #000; }
+.btn-y:hover { background: #ffd740; }
+.btn-y:disabled { background: #444; color: #888; cursor: not-allowed; }
+.btn-o { background: var(--accent2); color: #fff; display: none; }
+.btn-o.show { display: block; }
+.btn-r { background: transparent; border: 1px solid var(--red); color: var(--red); }
+.btn-g { background: var(--s2); border: 1px solid var(--border); color: var(--muted); }
+.row { display: flex; gap: 8px; margin-bottom: 10px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.lbl { font-size: .7rem; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); }
+.wf-card { padding: 14px; margin-bottom: 14px; display: none; }
+.wf-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.dot.run { background: var(--accent); }
+.dot.ok { background: var(--green); }
+.dot.fail { background: var(--red); }
+.bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 8px; }
+.bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width .5s; }
+.status { border-radius: var(--r); padding: 10px 12px; font-size: .82rem; margin-bottom: 10px; display: none; border: 1px solid var(--border); }
+.status.show { display: block; }
+.status.ok { border-color: var(--green); color: var(--green); background: #001a0d; }
+.status.err { border-color: var(--red); color: var(--red); background: #1a0000; }
+.status.info { border-color: #444; color: #aaa; background: var(--s2); }
+.rh { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.rc { font-size: .78rem; color: var(--muted); }
+.pc { display: flex; gap: 10px; padding: 10px; cursor: pointer; border-radius: var(--r); margin-bottom: 8px; position: relative; border: 1px solid var(--border); background: var(--surface); }
+.pc:hover { border-color: #333; }
+.pc.sel { border-color: var(--accent); background: #1a1500; }
+.pc.inq { border-color: var(--green); opacity: .65; }
+.pimg { width: 72px; height: 72px; object-fit: cover; border-radius: 6px; flex-shrink: 0; background: var(--s2); }
+.pi { flex: 1; min-width: 0; }
+.pt { font-size: .8rem; font-weight: 500; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 4px; }
+.pp { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 2px; }
+.ps { font-size: .9rem; font-weight: 700; color: var(--accent); }
+.po { font-size: .74rem; color: var(--muted); text-decoration: line-through; }
+.bd { font-size: .68rem; font-weight: 700; padding: 2px 5px; border-radius: 4px; background: var(--accent2); color: #fff; }
+.bq { font-size: .68rem; font-weight: 700; padding: 2px 5px; border-radius: 4px; background: var(--green); color: #000; }
+.pm { font-size: .7rem; color: var(--muted); }
+.ck { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; background: var(--accent); border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: .7rem; color: #000; font-weight: 900; }
+.pc.sel .ck { display: flex; }
+.qs { background: var(--s2); border: 1px solid var(--border); border-radius: var(--r); padding: 12px; margin-bottom: 10px; font-size: .82rem; color: var(--muted); }
+.qs strong { color: var(--text); }
+.qi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 10px 12px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+.qn { font-size: 1rem; font-weight: 900; color: var(--accent); min-width: 22px; }
+.qu { font-size: .7rem; color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; }
+.qd { background: none; border: none; color: var(--muted); cursor: pointer; font-size: .9rem; padding: 4px; }
+.qd:hover { color: var(--red); }
+.sg { margin-bottom: 12px; }
+.sl { font-size: .7rem; color: var(--muted); text-transform: uppercase; margin-bottom: 5px; }
+.sh { font-size: .72rem; color: var(--muted); margin-top: 4px; line-height: 1.4; opacity: .75; }
+.empty { text-align: center; color: var(--muted); padding: 40px 20px; font-size: .9rem; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--s2); border: 1px solid var(--accent); color: var(--text); padding: 10px 18px; border-radius: 30px; font-size: .82rem; font-weight: 600; z-index: 999; transition: transform .3s; white-space: nowrap; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.ok2 { border-color: var(--green); color: var(--green); }
+.toast.err2 { border-color: var(--red); color: var(--red); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">MULTICHOLLOS GESTOR</div>
+  <button class="btn btn-g" onclick="showTab('settings')" style="padding:7px 12px;font-size:.76rem">Config</button>
+</div>
+
+<div class="tabs">
+  <div class="tab active" id="tab-search" onclick="showTab('search')">Buscar</div>
+  <div class="tab" id="tab-queue" onclick="showTab('queue')">Cola <span id="qbadge"></span></div>
+  <div class="tab" id="tab-settings" onclick="showTab('settings')">Ajustes</div>
+</div>
+
+<div class="section active" id="section-search">
+  <div class="card wf-card" id="wf-card">
+    <div style="font-size:.75rem;color:var(--muted);margin-bottom:8px">ESTADO DE BUSQUEDA</div>
+    <div class="wf-row">
+      <div class="dot" id="wf-dot"></div>
+      <span id="wf-text" style="font-size:.85rem;font-weight:600">Iniciando...</span>
+    </div>
+    <div class="bar"><div class="bar-fill" id="wf-bar"></div></div>
+    <div id="wf-detail" style="font-size:.72rem;color:var(--muted)"></div>
+  </div>
+
+  <div class="row">
+    <input type="text" id="kw" placeholder="Ej: smartwatch, earbuds..." value="smartwatch">
+    <button class="btn btn-y" id="btn-search" onclick="startSearch()">BUSCAR</button>
+  </div>
+
+  <div class="grid2">
+    <div>
+      <div class="lbl">Descuento minimo</div>
+      <select id="fdiscount">
+        <option value="10">10% o mas</option>
+        <option value="20" selected>20% o mas</option>
+        <option value="30">30% o mas</option>
+        <option value="40">40% o mas</option>
+        <option value="50">50% o mas</option>
+      </select>
+    </div>
+    <div>
+      <div class="lbl">Ordenar por</div>
+      <select id="fsort">
+        <option value="LAST_VOLUME_DESC">Mas vendidos</option>
+        <option value="SALE_PRICE_ASC">Precio menor</option>
+        <option value="SALE_PRICE_DESC">Precio mayor</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="status" id="st"></div>
+
+  <div class="rh">
+    <span class="rc" id="rc"></span>
+    <button class="btn btn-o" id="btn-add" onclick="addSelected()">Añadir seleccionados</button>
+  </div>
+
+  <div id="grid">
+    <div class="empty">Escribe una busqueda y pulsa BUSCAR<br><small style="opacity:.6">Los resultados tardan unos 30 segundos</small></div>
+  </div>
+</div>
+
+<div class="section" id="section-queue">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <span style="font-size:1.1rem;font-weight:900;color:var(--accent)">COLA DE PUBLICACION</span>
+    <button class="btn btn-r" onclick="clearQueue()" style="padding:6px 10px;font-size:.76rem">Vaciar</button>
+  </div>
+  <div class="qs" id="qstats">Cargando...</div>
+  <div id="qlist"></div>
+</div>
+
+<div class="section" id="section-settings">
+  <div style="font-size:1rem;font-weight:900;color:var(--accent);margin-bottom:12px">CONFIGURACION GITHUB</div>
+  <div class="sg">
+    <div class="sl">Personal Access Token</div>
+    <input type="password" id="s-token" placeholder="ghp_xxxxxxxxxxxx">
+    <div class="sh">GitHub - Settings - Developer settings - Personal access tokens - Fine-grained. Permiso necesario: Contents (read and write) en el repositorio AliExpress-bot.</div>
+  </div>
+  <button class="btn btn-y" onclick="saveSettings()" style="width:100%;margin-top:8px">GUARDAR</button>
+  <div class="status" id="st-cfg" style="margin-top:10px"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var GH_USER = "mono-mlg";
+var GH_REPO = "AliExpress-bot";
+
+function ghHeaders() {
+  var token = localStorage.getItem("gh_token") || "";
+  return {
+    "Authorization": "token " + token,
+    "Accept": "application/vnd.github.v3+json",
+    "Content-Type": "application/json"
+  };
+}
+
+var products = [];
+var selected = {};
+var queueUrls = [];
+var pollTimer = null;
+var runId = null;
+
+window.onload = function() {
+  loadSettings();
+  loadQueue();
+};
+
+function showTab(name) {
+  var secs = document.querySelectorAll(".section");
+  for (var i = 0; i < secs.length; i++) secs[i].classList.remove("active");
+  var tabs = document.querySelectorAll(".tab");
+  for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove("active");
+  document.getElementById("section-" + name).classList.add("active");
+  document.getElementById("tab-" + name).classList.add("active");
+  if (name === "queue") renderQueue();
+}
+
+function startSearch() {
+  var kw = document.getElementById("kw").value.trim();
+  if (!kw) return;
+  var token = localStorage.getItem("gh_token");
+  if (!token) {
+    showToast("Configura el token en Ajustes", "err2");
+    showTab("settings");
+    return;
+  }
+  var btn = document.getElementById("btn-search");
+  btn.disabled = true;
+  btn.textContent = "BUSCANDO...";
+  selected = {};
+  products = [];
+  document.getElementById("grid").innerHTML = "";
+  document.getElementById("btn-add").classList.remove("show");
+  document.getElementById("rc").textContent = "";
+
+  var discount = document.getElementById("fdiscount").value;
+  var sort = document.getElementById("fsort").value;
+  var body = JSON.stringify({
+    ref: "main",
+    inputs: {
+      keyword: kw,
+      min_descuento: discount,
+      min_precio: "5",
+      sort: sort
+    }
+  });
+
+  fetch("https://api.github.com/repos/" + GH_USER + "/" + GH_REPO + "/actions/workflows/buscar_productos.yml/dispatches", {
+    method: "POST",
+    headers: ghHeaders(),
+    body: body
+  }).then(function(r) {
+    if (r.status !== 204) {
+      return r.text().then(function(t) {
+        showStatus("Error al lanzar busqueda: " + t, "err");
+        btn.disabled = false;
+        btn.textContent = "BUSCAR";
+      });
+    }
+    showWfCard("run", "Buscando en GitHub Actions...", 10);
+    showStatus("", "");
+    setTimeout(function() {
+      getRunId().then(function(id) {
+        runId = id;
+        pollWorkflow(kw);
+      });
+    }, 6000);
+  }).catch(function(e) {
+    showStatus("Error: " + e.message, "err");
+    btn.disabled = false;
+    btn.textContent = "BUSCAR";
+  });
+}
+
+function getRunId() {
+  return fetch("https://api.github.com/repos/" + GH_USER + "/" + GH_REPO + "/actions/workflows/buscar_productos.yml/runs?per_page=1", {
+    headers: ghHeaders()
+  }).then(function(r) {
+    return r.json();
+  }).then(function(d) {
+    return d.workflow_runs && d.workflow_runs[0] ? d.workflow_runs[0].id : null;
+  }).catch(function() { return null; });
+}
+
+function pollWorkflow(kw) {
+  var progress = 15;
+  var elapsed = 0;
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(function() {
+    elapsed += 5;
+    progress = Math.min(90, progress + 4);
+    document.getElementById("wf-bar").style.width = progress + "%";
+
+    if (!runId) {
+      getRunId().then(function(id) { runId = id; });
+      return;
+    }
+
+    fetch("https://api.github.com/repos/" + GH_USER + "/" + GH_REPO + "/actions/runs/" + runId, {
+      headers: ghHeaders()
+    }).then(function(r) {
+      return r.json();
+    }).then(function(run) {
+      var st = run.status;
+      var co = run.conclusion;
+      document.getElementById("wf-detail").textContent = "Estado: " + st + (co ? " - " + co : "") + " - " + elapsed + "s";
+
+      if (st === "completed") {
+        clearInterval(pollTimer);
+        if (co === "success") {
+          showWfCard("ok", "Busqueda completada", 100);
+          setTimeout(function() { loadResults(kw); }, 1000);
+        } else {
+          showWfCard("fail", "Error en la busqueda", 100);
+          var btn = document.getElementById("btn-search");
+          btn.disabled = false;
+          btn.textContent = "BUSCAR";
+        }
+      }
+    }).catch(function(e) {
+      console.warn("poll error", e);
+    });
+
+    if (elapsed > 120) {
+      clearInterval(pollTimer);
+      showWfCard("fail", "Timeout - intenta de nuevo", 100);
+      var btn = document.getElementById("btn-search");
+      btn.disabled = false;
+      btn.textContent = "BUSCAR";
+    }
+  }, 5000);
+}
+
+function loadResults(kw) {
+  fetch("https://api.github.com/repos/" + GH_USER + "/" + GH_REPO + "/contents/resultados_busqueda.json", {
+    headers: ghHeaders()
+  }).then(function(r) {
+    if (!r.ok) { showStatus("Sin resultados", "err"); return null; }
+    return r.json();
+  }).then(function(data) {
+    if (!data) return;
+    var content = JSON.parse(atob(data.content.replace(/\n/g, "")));
+    products = content.productos || [];
+    renderProducts();
+    document.getElementById("rc").textContent = products.length + " productos encontrados para: " + content.keyword;
+    document.getElementById("wf-card").style.display = "none";
+    var btn = document.getElementById("btn-search");
+    btn.disabled = false;
+    btn.textContent = "BUSCAR";
+    showStatus(products.length > 0 ? products.length + " productos encontrados" : "Sin resultados con esos filtros", products.length > 0 ? "ok" : "info");
+  }).catch(function(e) {
+    showStatus("Error cargando resultados: " + e.message, "err");
+    var btn = document.getElementById("btn-search");
+    btn.disabled = false;
+    btn.textContent = "BUSCAR";
+  });
+}
+
+function renderProducts() {
+  var grid = document.getElementById("grid");
+  if (!products.length) {
+    grid.innerHTML = '<div class="empty">Sin resultados</div>';
+    return;
+  }
+  var qset = {};
+  for (var i = 0; i < queueUrls.length; i++) qset[queueUrls[i]] = true;
+  var html = "";
+  for (var i = 0; i < products.length; i++) {
+    var p = products[i];
+    var isSel = selected[p.id] ? "sel" : "";
+    var isQ = qset[p.link] ? "inq" : "";
+    var qbadge = qset[p.link] ? '<span class="bq">En cola</span>' : "";
+    var meta = "";
+    if (p.rating > 0) meta += "Valoracion: " + p.rating.toFixed(1);
+    if (p.ventas > 0) meta += (meta ? " - " : "") + p.ventas.toLocaleString() + " vendidos";
+    html += '<div class="pc ' + isSel + " " + isQ + '" onclick="toggleSel(' + "'" + p.id + "'" + ')">';
+    html += '<img class="pimg" src="' + p.imagen + '" loading="lazy" onerror="this.style.background=\'#222\'">';
+    html += '<div class="pi">';
+    html += '<div class="pt">' + p.titulo + '</div>';
+    html += '<div class="pp"><span class="ps">' + p.precio_sale + "€</span>";
+    html += '<span class="po">' + p.precio_orig + "€</span>";
+    html += '<span class="bd">-' + p.descuento + '%</span>' + qbadge + '</div>';
+    html += '<div class="pm">' + meta + '</div>';
+    html += '</div><div class="ck">OK</div></div>';
+  }
+  grid.innerHTML = html;
+}
+
+function toggleSel(id) {
+  if (selected[id]) {
+    delete selected[id];
+  } else {
+    selected[id] = true;
+  }
+  renderProducts();
+  var count = Object.keys(selected).length;
+  var btn = document.getElementById("btn-add");
+  if (count > 0) {
+    btn.classList.add("show");
+    btn.textContent = "Añadir " + count + " producto" + (count > 1 ? "s" : "");
+  } else {
+    btn.classList.remove("show");
+  }
+}
+
+function loadQueue() {
+  var token = localStorage.getItem("gh_token");
+  if (!token) return;
+  fetch("https://api.github.com/repos/" + GH_USER + "/" + GH_REPO + "/contents/cola.txt", {
+    headers: ghHeaders()
+  }).then(function(r) {
+    if (!r.ok) { queueUrls = []; updateBadge(); return null; }
+    return r.json();
+  }).then(function(data) {
+    if (!data) return;
+    var content = atob(data.content.replace(/\n/g, ""));
+    queueUrls = content.split("\n").filter(function(l) {
+      return l.trim() && l.charAt(0) !== "#";
+    });
+    updateBadge();
+  }).catch(function() { queueUrls = []; });
+}
+
+function saveQueue() {
+  return fetch("https://api.github.com/repos/" + GH_USER + "/" + GH_REPO + "/contents/cola.txt", {
+    headers: ghHeaders()
+  }).then(function(r) {
+    return r.json();
+  }).then(function(data) {
+    var sha = data.sha;
+    var header = "# Cola MultiChollos\n";
+    var content = header + queueUrls.join("\n") + "\n";
+    var encoded = btoa(unescape(encodeURIComponent(content)));
+    return fetch("https://api.github.com/repos/" + GH_USER + "/" + GH_REPO + "/contents/cola.txt", {
+      method: "PUT",
+      headers: ghHeaders(),
+      body: JSON.stringify({ message: "Cola actualizada", content: encoded, sha: sha, branch: "main" })
+    });
+  }).then(function(r) {
+    if (!r.ok) throw new Error("GitHub error " + r.status);
+  });
+}
+
+function addSelected() {
+  var token = localStorage.getItem("gh_token");
+  if (!token) { showToast("Configura el token primero", "err2"); return; }
+  var selIds = Object.keys(selected);
+  if (!selIds.length) return;
+  var qset = {};
+  for (var i = 0; i < queueUrls.length; i++) qset[queueUrls[i]] = true;
+  var newUrls = [];
+  for (var i = 0; i < products.length; i++) {
+    var p = products[i];
+    if (selected[p.id] && p.link && !qset[p.link]) newUrls.push(p.link);
+  }
+  if (!newUrls.length) { showToast("Ya estan en la cola", ""); return; }
+  for (var i = 0; i < newUrls.length; i++) queueUrls.push(newUrls[i]);
+  saveQueue().then(function() {
+    selected = {};
+    document.getElementById("btn-add").classList.remove("show");
+    renderProducts();
+    updateBadge();
+    showToast(newUrls.length + " producto" + (newUrls.length > 1 ? "s" : "") + " añadido" + (newUrls.length > 1 ? "s" : ""), "ok2");
+  }).catch(function(e) {
+    showToast("Error: " + e.message, "err2");
+  });
+}
+
+function clearQueue() {
+  if (!queueUrls.length) return;
+  if (!confirm("Vaciar la cola? (" + queueUrls.length + " URLs)")) return;
+  queueUrls = [];
+  saveQueue().then(function() {
+    renderQueue();
+    updateBadge();
+    showToast("Cola vaciada", "");
+  }).catch(function(e) {
+    showToast("Error: " + e.message, "err2");
+  });
+}
+
+function removeFromQueue(idx) {
+  queueUrls.splice(idx, 1);
+  saveQueue().then(function() {
+    renderQueue();
+    updateBadge();
+    showToast("Eliminado", "");
+  }).catch(function(e) {
+    showToast("Error: " + e.message, "err2");
+  });
+}
+
+function renderQueue() {
+  var mins = queueUrls.length * 10;
+  document.getElementById("qstats").innerHTML =
+    "<strong>" + queueUrls.length + "</strong> productos en cola - aproximadamente <strong>" + mins + " minutos</strong> para publicarse";
+  var list = document.getElementById("qlist");
+  if (!queueUrls.length) {
+    list.innerHTML = '<div class="empty">Cola vacia - busca y selecciona productos para añadirlos</div>';
+    return;
+  }
+  var html = "";
+  for (var i = 0; i < queueUrls.length; i++) {
+    html += '<div class="qi">';
+    html += '<span class="qn">' + (i + 1) + '</span>';
+    html += '<span class="qu">' + queueUrls[i] + '</span>';
+    html += '<button class="qd" onclick="removeFromQueue(' + i + ')">X</button>';
+    html += '</div>';
+  }
+  list.innerHTML = html;
+}
+
+function updateBadge() {
+  var b = document.getElementById("qbadge");
+  b.textContent = queueUrls.length ? " (" + queueUrls.length + ")" : "";
+}
+
+function loadSettings() {
+  var t = localStorage.getItem("gh_token") || "";
+  document.getElementById("s-token").value = t;
+}
+
+function saveSettings() {
+  var t = document.getElementById("s-token").value.trim();
+  localStorage.setItem("gh_token", t);
+  var st = document.getElementById("st-cfg");
+  st.textContent = "Token guardado correctamente";
+  st.className = "status show ok";
+  setTimeout(function() { st.className = "status"; }, 2500);
+  loadQueue();
+}
+
+function showWfCard(status, text, progress) {
+  var card = document.getElementById("wf-card");
+  card.style.display = "block";
+  var dot = document.getElementById("wf-dot");
+  dot.className = "dot";
+  if (status === "run") dot.classList.add("run");
+  else if (status === "ok") dot.classList.add("ok");
+  else dot.classList.add("fail");
+  document.getElementById("wf-text").textContent = text;
+  document.getElementById("wf-bar").style.width = progress + "%";
+}
+
+function showStatus(msg, type) {
+  var el = document.getElementById("st");
+  el.textContent = msg;
+  el.className = "status" + (msg ? " show " + type : "");
+}
+
+function showToast(msg, type) {
+  var t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast show " + (type || "");
+  setTimeout(function() { t.className = "toast"; }, 2500);
+}
+</script>
+</body>
+</html>
