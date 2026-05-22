@@ -72,6 +72,16 @@ def buscar():
             raw = (data["aliexpress_affiliate_hotproduct_query_response"]
                        ["resp_result"]["result"]["products"]["product"])
             print("    Pagina " + str(pagina) + " — " + str(len(raw)) + " productos")
+
+            # DIAGNOSTICO — borrar despues
+if len(productos) == 0 and len(raw) > 0:
+    p = raw[0]
+    precio_orig = round(float(str(p.get("original_price","0")).replace(",",".")) * tasa, 2)
+    precio_sale = round(float(str(p.get("sale_price","0")).replace(",",".")) * tasa, 2)
+    descuento = round((1 - precio_sale / precio_orig) * 100) if precio_orig > 0 else 0
+    print("MUESTRA raw[0]: orig=" + str(p.get("original_price")) + " sale=" + str(p.get("sale_price")))
+    print("MUESTRA convertido: orig=" + str(precio_orig) + "EUR sale=" + str(precio_sale) + "EUR dto=" + str(descuento) + "%")
+            
             for p in raw:
                 try:
                     precio_orig = round(float(str(p.get("original_price","0")).replace(",",".")) * tasa, 2)
