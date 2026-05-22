@@ -48,10 +48,11 @@ def obtener_tipo_cambio():
 
 def buscar():
     tasa = obtener_tipo_cambio()
-    print(">>> Buscando: " + KEYWORD)
+    print(">>> Buscando: " + KEYWORD + " | tasa CNY->EUR: " + str(tasa))
     productos = []
     paginas_probadas = set()
     intentos = 0
+    diagnostico_hecho = False
 
     while len(productos) < MAX_RESULTADOS and intentos < 10:
         pagina = random.randint(1, 20)
@@ -73,15 +74,20 @@ def buscar():
                        ["resp_result"]["result"]["products"]["product"])
             print("    Pagina " + str(pagina) + " — " + str(len(raw)) + " productos")
 
-            # DIAGNOSTICO — borrar despues
-if len(productos) == 0 and len(raw) > 0:
-    p = raw[0]
-    precio_orig = round(float(str(p.get("original_price","0")).replace(",",".")) * tasa, 2)
-    precio_sale = round(float(str(p.get("sale_price","0")).replace(",",".")) * tasa, 2)
-    descuento = round((1 - precio_sale / precio_orig) * 100) if precio_orig > 0 else 0
-    print("MUESTRA raw[0]: orig=" + str(p.get("original_price")) + " sale=" + str(p.get("sale_price")))
-    print("MUESTRA convertido: orig=" + str(precio_orig) + "EUR sale=" + str(precio_sale) + "EUR dto=" + str(descuento) + "%")
-            
+            # DIAGNOSTICO: mostrar primeros 3 productos sin filtrar
+            if not diagnostico_hecho and raw:
+                diagnostico_hecho = True
+                print("    DIAGNOSTICO primeros 3 productos raw:")
+                for idx, p in enumerate(raw[:3]):
+                    orig_raw = p.get("original_price", "0")
+                    sale_raw = p.get("sale_price", "0")
+                    orig_eur = round(float(str(orig_raw).replace(",", ".")) * tasa, 2)
+                    sale_eur = round(float(str(sale_raw).replace(",", ".")) * tasa, 2)
+                    dto = round((1 - sale_eur / orig_eur) * 100) if orig_eur > 0 else 0
+                    print("    [" + str(idx) + "] raw orig=" + str(orig_raw) + " sale=" + str(sale_raw))
+                    print("        EUR orig=" + str(orig_eur) + " sale=" + str(sale_eur) + " dto=" + str(dto) + "%")
+                    print("        titulo=" + p.get("product_title","")[:50])
+
             for p in raw:
                 try:
                     precio_orig = round(float(str(p.get("original_price","0")).replace(",",".")) * tasa, 2)
@@ -142,3 +148,4 @@ if __name__ == "__main__":
     print(">>> " + str(len(productos)) + " productos encontrados")
     guardar_resultados(productos, tasa)
     print("=== Fin ===")
+    
