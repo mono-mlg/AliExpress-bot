@@ -74,10 +74,11 @@ def buscar():
                        ["resp_result"]["result"]["products"]["product"])
             print("    Pagina " + str(pagina) + " — " + str(len(raw)) + " productos")
 
+
             for p in raw:
                 try:
                     precio_orig = round(float(str(p.get("original_price","0")).replace(",",".")), 2)
-precio_sale = round(float(str(p.get("sale_price","0")).replace(",",".")), 2)
+                    precio_sale = round(float(str(p.get("sale_price","0")).replace(",",".")), 2)
                     if precio_orig < MIN_PRECIO or precio_sale <= 0:
                         continue
                     descuento = round((1 - precio_sale / precio_orig) * 100)
@@ -134,4 +135,3 @@ if __name__ == "__main__":
     print(">>> " + str(len(productos)) + " productos encontrados")
     guardar_resultados(productos, tasa)
     print("=== Fin ===")
-    
