@@ -74,24 +74,10 @@ def buscar():
                        ["resp_result"]["result"]["products"]["product"])
             print("    Pagina " + str(pagina) + " — " + str(len(raw)) + " productos")
 
-            # DIAGNOSTICO: mostrar primeros 3 productos sin filtrar
-            if not diagnostico_hecho and raw:
-                diagnostico_hecho = True
-                print("    DIAGNOSTICO primeros 3 productos raw:")
-                for idx, p in enumerate(raw[:3]):
-                    orig_raw = p.get("original_price", "0")
-                    sale_raw = p.get("sale_price", "0")
-                    orig_eur = round(float(str(orig_raw).replace(",", ".")) * tasa, 2)
-                    sale_eur = round(float(str(sale_raw).replace(",", ".")) * tasa, 2)
-                    dto = round((1 - sale_eur / orig_eur) * 100) if orig_eur > 0 else 0
-                    print("    [" + str(idx) + "] raw orig=" + str(orig_raw) + " sale=" + str(sale_raw))
-                    print("        EUR orig=" + str(orig_eur) + " sale=" + str(sale_eur) + " dto=" + str(dto) + "%")
-                    print("        titulo=" + p.get("product_title","")[:50])
-
             for p in raw:
                 try:
-                    precio_orig = round(float(str(p.get("original_price","0")).replace(",",".")) * tasa, 2)
-                    precio_sale = round(float(str(p.get("sale_price","0")).replace(",",".")) * tasa, 2)
+                    precio_orig = round(float(str(p.get("original_price","0")).replace(",",".")), 2)
+precio_sale = round(float(str(p.get("sale_price","0")).replace(",",".")), 2)
                     if precio_orig < MIN_PRECIO or precio_sale <= 0:
                         continue
                     descuento = round((1 - precio_sale / precio_orig) * 100)
