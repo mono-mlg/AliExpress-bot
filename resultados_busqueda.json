@@ -1,19 +1,7 @@
 {
-  "keyword": "Smartphone",
-  "timestamp": "2026-05-22 10:10:41",
-  "total": 1,
+  "keyword": "smartphone",
+  "timestamp": "2026-05-22 11:57:47",
+  "total": 0,
   "tasa_eur": 0.126,
-  "productos": [
-    {
-      "id": "1005012132994588",
-      "titulo": "PD 60W USB-C to Type C Fast Charging Cable For Iphone16 17 Pro Max Samsung Huawei Type C USB C Weavi",
-      "imagen": "https://ae-pic-a1.aliexpress-media.com/kf/S34e0b76c29c94c17b8eff82693a0ef13A.png",
-      "precio_orig": 6.18,
-      "precio_sale": 4.45,
-      "descuento": 28,
-      "rating": 0.0,
-      "ventas": 0,
-      "link": "https://s.click.aliexpress.com/s/pyFri10M6ltAv61YZY9TfrxiDaaFXRreuZWJMeLtD8jig1wPxn51K2eq59ds8iT5Wl5L3w5KJyrl7SjOO3B0oJ0Xjwnc7n8AQA7gf5qnT4sCyU05LNms9JvyWQNFHNKtzBcoBpSguMg3UBR1FOODkmGTloXosMhqhnKgzzuJPYPxewVvzupiAiKSJA5SK0iQRxmaQ7UPG0AP2HC7uLitVpvXIfjMl7RnsnN7B8FrGfP9TWP7emQeaXV90Bp9fLEiLeKHsRf9R2jgKD32Axm5na4bRJdkhGVyv3GcDgMjmYrrZWinWctR9gnPwA4EJGwtNkX0eJRNUbwfXtVPr65DOG1OPleF4IPNLy7xDCi1Jv9eHlfhjTR8vL2Cw4A9PRVGVAO7NqEO2e4anLPzsS8jg877syFr76GReICo9U6U8qtxuScEHCmWtj4yPYDLkNoSP6U8lKhp2sszPMrYih81jJ1C2TeNmDVWmdsZtCLIEs6q7IJOSq1IzQstFKPPYkPAVCFwCs47oHQVwFkR4Avcf2ugWsQ9nnNQPIMB8X40FthKD5mXKt4BCVu2fx28yVaAIvwGMkIG7ItFHqdjH4RJNHjGz0oSK3WPoDpGZFEp2DWFdT0wUziy5rDMBGUucSQOUo1WX0IjZm1IgqFKWilP3bgKL9XhAJMLC7GzV1po8j3Y9yWahkt6OV1yN30e9RkRJt1kMwt9O4CtZiqwaXoXSVKO45cwl4Zqjn2J8Jlo7h68ZX7Outh85UF38cWPywV6RmtemYaXNV2A0jrj5u4VuXmDfsnc7rkQX9PugwipAbTLxlJGdrXk3ktRA0AW1A6LnSupJpNl4j9bIk9N8QsyEjuip4CjiRCoag7rrBYsTA4QWsON3JN65NUzKA6hCWx2Yw2ZkCiE4vWvGvs50UTBJtYifb9pVTkazL00x2UeXchPzZxtaPBsojCAnvAGzqAtSXGxM0AAi3cPUk8FJDVG4SEst0ONRw8citG7bGaGXfFjRK1h9nlU3S3zDkA01RIM3Ahy17hK"
-    }
-  ]
+  "productos": []
 }
