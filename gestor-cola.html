@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MultiChollos — Gestor</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080808;
+  --surface: #111;
+  --surface2: #181818;
+  --border: #222;
+  --accent: #f5c200;
+  --accent2: #ff4500;
+  --text: #f0f0f0;
+  --muted: #555;
+  --green: #00e676;
+  --red: #ff4444;
+  --radius: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+
+.header {
+  background: linear-gradient(135deg, #111 0%, #1a1100 100%);
+  border-bottom: 2px solid var(--accent);
+  padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.4rem; letter-spacing: 2px; color: var(--accent); }
+.logo span { color: #888; font-size: .85rem; margin-left: 6px; letter-spacing: 1px; }
+
+.tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); }
+.tab { flex: 1; padding: 12px 6px; text-align: center; font-size: .82rem; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all .2s; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.section { display: none; padding: 14px; }
+.section.active { display: block; }
+
+.input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 10px 14px; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: .9rem; outline: none; width: 100%; transition: border-color .2s; }
+.input:focus { border-color: var(--accent); }
+
+.select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 9px 10px; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: .82rem; outline: none; width: 100%; }
+
+.btn { border: none; padding: 10px 18px; border-radius: var(--radius); font-family: 'DM Sans', sans-serif; font-size: .88rem; font-weight: 600; cursor: pointer; transition: all .15s; }
+.btn-primary { background: var(--accent); color: #000; }
+.btn-primary:hover { background: #ffd740; }
+.btn-primary:disabled { background: var(--muted); color: #333; cursor: not-allowed; }
+.btn-danger { background: transparent; border: 1px solid var(--red); color: var(--red); }
+.btn-danger:hover { background: var(--red); color: #fff; }
+.btn-ghost { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn-orange { background: var(--accent2); color: #fff; }
+.btn-orange:hover { background: #ff6a00; }
+
+.search-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.filter-group { display: flex; flex-direction: column; gap: 4px; }
+.filter-label { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+
+.status-bar { border-radius: var(--radius); padding: 10px 14px; font-size: .82rem; margin-bottom: 12px; display: none; border: 1px solid var(--border); }
+.status-bar.visible { display: block; }
+.status-bar.ok { border-color: var(--green); color: var(--green); background: #001a0d; }
+.status-bar.err { border-color: var(--red); color: var(--red); background: #1a0000; }
+.status-bar.loading { border-color: var(--accent); color: var(--accent); background: #1a1200; }
+.status-bar.info { border-color: #444; color: #aaa; background: var(--surface2); }
+
+/* WORKFLOW STATUS */
+.workflow-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 14px; }
+.workflow-title { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+.workflow-status { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.status-dot.running { background: var(--accent); animation: pulse 1s infinite; }
+.status-dot.success { background: var(--green); }
+.status-dot.failed { background: var(--red); }
+.status-text { font-size: .85rem; font-weight: 500; }
+.progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+.progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width .5s; border-radius: 2px; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+/* RESULTS */
+.results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.results-count { font-size: .8rem; color: var(--muted); }
+.btn-add-all { display: none; }
+.btn-add-all.visible { display: block; }
+
+.product-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); display: flex; gap: 10px; padding: 10px; cursor: pointer; transition: all .15s; position: relative; margin-bottom: 8px; }
+.product-card:hover { border-color: #333; background: #141414; }
+.product-card.selected { border-color: var(--accent); background: #1a1500; }
+.product-card.in-queue { border-color: var(--green); opacity: .6; }
+.product-img { width: 76px; height: 76px; object-fit: cover; border-radius: 6px; flex-shrink: 0; background: var(--surface2); }
+.product-info { flex: 1; min-width: 0; }
+.product-title { font-size: .8rem; font-weight: 500; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 5px; }
+.product-prices { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 3px; }
+.price-sale { font-size: .92rem; font-weight: 700; color: var(--accent); }
+.price-orig { font-size: .75rem; color: var(--muted); text-decoration: line-through; }
+.badge { font-size: .68rem; font-weight: 700; padding: 2px 5px; border-radius: 4px; }
+.badge-disc { background: var(--accent2); color: #fff; }
+.badge-queue { background: var(--green); color: #000; }
+.product-meta { font-size: .7rem; color: var(--muted); }
+.check-icon { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; background: var(--accent); border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: .7rem; color: #000; font-weight: 900; }
+.product-card.selected .check-icon { display: flex; }
+
+/* QUEUE */
+.queue-stats { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 12px; font-size: .82rem; color: var(--muted); }
+.queue-stats strong { color: var(--text); }
+.queue-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+.queue-num { font-family: 'Bebas Neue', sans-serif; font-size: 1rem; color: var(--accent); min-width: 22px; }
+.queue-url { font-family: 'JetBrains Mono', monospace; font-size: .7rem; color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queue-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: .9rem; padding: 4px; }
+.queue-del:hover { color: var(--red); }
+
+/* SETTINGS */
+.settings-section { margin-bottom: 20px; }
+.settings-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; letter-spacing: 1px; color: var(--accent); margin-bottom: 10px; }
+.settings-group { margin-bottom: 12px; }
+.settings-label { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 5px; }
+.settings-hint { font-size: .72rem; color: var(--muted); margin-top: 4px; opacity: .7; line-height: 1.4; }
+.divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+
+.empty { text-align: center; color: var(--muted); padding: 40px 20px; }
+.empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--surface2); border: 1px solid var(--accent); color: var(--text); padding: 10px 18px; border-radius: 30px; font-size: .82rem; font-weight: 500; z-index: 999; transition: transform .3s; white-space: nowrap; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { border-color: var(--green); color: var(--green); }
+.toast.error { border-color: var(--red); color: var(--red); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #333; border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">MultiChollos <span>GESTOR</span></div>
+  <button class="btn btn-ghost" onclick="showTab('settings')" style="padding:7px 12px;font-size:.78rem">⚙️</button>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('search')" id="tab-search">🔍 Buscar</div>
+  <div class="tab" onclick="showTab('queue')" id="tab-queue">📋 Cola <span id="queue-badge"></span></div>
+  <div class="tab" onclick="showTab('settings')" id="tab-settings">⚙️ Config</div>
+</div>
+
+<!-- SEARCH -->
+<div class="section active" id="section-search">
+
+  <div class="workflow-card" id="workflow-card" style="display:none">
+    <div class="workflow-title">Estado de la búsqueda</div>
+    <div class="workflow-status">
+      <div class="status-dot" id="wf-dot"></div>
+      <span class="status-text" id="wf-text">Iniciando...</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="wf-progress"></div></div>
+    <div style="font-size:.75rem;color:var(--muted)" id="wf-detail"></div>
+  </div>
+
+  <div class="search-row">
+    <input class="input" id="search-input" placeholder="Ej: smartwatch, earbuds..." value="smartwatch" onkeydown="if(event.key==='Enter') startSearch()">
+    <button class="btn btn-primary" onclick="startSearch()" id="btn-search">BUSCAR</button>
+  </div>
+
+  <div class="filters">
+    <div class="filter-group">
+      <span class="filter-label">Descuento mín.</span>
+      <select class="select" id="filter-discount">
+        <option value="10">≥ 10%</option>
+        <option value="20" selected>≥ 20%</option>
+        <option value="30">≥ 30%</option>
+        <option value="40">≥ 40%</option>
+        <option value="50">≥ 50%</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Ordenar por</span>
+      <select class="select" id="filter-sort">
+        <option value="LAST_VOLUME_DESC">Más vendidos</option>
+        <option value="SALE_PRICE_ASC">Precio: menor</option>
+        <option value="SALE_PRICE_DESC">Precio: mayor</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="status-bar" id="status"></div>
+
+  <div class="results-header">
+    <span class="results-count" id="results-count"></span>
+    <button class="btn btn-orange btn-add-all" id="btn-add-all" onclick="addSelectedToQueue()">
+      ➕ Añadir seleccionados
+    </button>
+  </div>
+
+  <div id="product-grid">
+    <div class="empty">
+      <div class="empty-icon">🔍</div>
+      <div>Escribe una búsqueda y pulsa BUSCAR<br><small style="opacity:.6">Los resultados tardan ~30 segundos</small></div>
+    </div>
+  </div>
+</div>
+
+<!-- QUEUE -->
+<div class="section" id="section-queue">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <span style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:1px;color:var(--accent)">Cola de publicación</span>
+    <button class="btn btn-danger" onclick="clearQueue()" style="padding:6px 12px;font-size:.76rem">🗑 Vaciar</button>
+  </div>
+  <div class="queue-stats" id="queue-stats">Cargando cola...</div>
+  <div id="queue-list"></div>
+</div>
+
+<!-- SETTINGS -->
+<div class="section" id="section-settings">
+  <div class="settings-section">
+    <div class="settings-title">🐙 GitHub</div>
+    <div class="settings-group">
+      <div class="settings-label">Personal Access Token</div>
+      <input class="input" id="s-ghtoken" type="password" placeholder="ghp_xxxxxxxxxxxx">
+      <div class="settings-hint">GitHub → Settings → Developer settings → Personal access tokens → Fine-grained. Permiso: Contents (read & write) en AliExpress-bot.</div>
+    </div>
+  </div>
+  <button class="btn btn-primary" onclick="saveSettings()" style="width:100%">💾 GUARDAR</button>
+  <div class="status-bar" id="settings-status" style="margin-top:10px"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const GH_USER = "mono-mlg";
+const GH_REPO = "AliExpress-bot";
+const GH_HEADERS = () => ({
+  "Authorization": "token " + (localStorage.getItem("gh_token") || ""),
+  "Accept": "application/vnd.github.v3+json",
+  "Content-Type": "application/json"
+});
+
+let products = [];
+let selected = new Set();
+let queueUrls = [];
+let pollInterval = null;
+let workflowRunId = null;
+
+// ── INIT ──
+window.onload = async () => {
+  loadSettings();
+  await loadQueue();
+};
+
+// ── TABS ──
+function showTab(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'queue') renderQueue();
+}
+
+// ── SEARCH: lanza el workflow ──
+async function startSearch() {
+  const keyword = document.getElementById('search-input').value.trim();
+  if (!keyword) return;
+  const token = localStorage.getItem("gh_token");
+  if (!token) { showToast("Configura el token en ⚙️ Config", "error"); showTab('settings'); return; }
+
+  const btn = document.getElementById('btn-search');
+  btn.disabled = true;
+  btn.textContent = "BUSCANDO...";
+  selected.clear();
+  products = [];
+  document.getElementById('product-grid').innerHTML = '';
+  document.getElementById('btn-add-all').classList.remove('visible');
+
+  const discount = document.getElementById('filter-discount').value;
+  const sort = document.getElementById('filter-sort').value;
+
+  // Lanzar workflow via API
+  try {
+    const r = await fetch(
+      `https://api.github.com/repos/${GH_USER}/${GH_REPO}/actions/workflows/buscar_productos.yml/dispatches`,
+      {
+        method: "POST",
+        headers: GH_HEADERS(),
+        body: JSON.stringify({
+          ref: "main",
+          inputs: {
+            keyword: keyword,
+            min_descuento: discount,
+            min_precio: "5",
+            sort: sort
+          }
+        })
+      }
+    );
+
+    if (r.status !== 204) {
+      const err = await r.text();
+      showStatus("Error al lanzar búsqueda: " + err, "err");
+      btn.disabled = false; btn.textContent = "BUSCAR";
+      return;
+    }
+
+    // Mostrar card de progreso
+    showWorkflowCard("running", "Iniciando búsqueda en GitHub Actions...", 10);
+    showStatus("", "");
+
+    // Esperar 5 segundos para que el workflow aparezca y luego hacer polling
+    await sleep(5000);
+    workflowRunId = await getLatestRunId();
+    pollWorkflow(keyword);
+
+  } catch(e) {
+    showStatus("Error: " + e.message, "err");
+    btn.disabled = false; btn.textContent = "BUSCAR";
+  }
+}
+
+async function getLatestRunId() {
+  try {
+    const r = await fetch(
+      `https://api.github.com/repos/${GH_USER}/${GH_REPO}/actions/workflows/buscar_productos.yml/runs?per_page=1`,
+      { headers: GH_HEADERS() }
+    );
+    const d = await r.json();
+    return d.workflow_runs?.[0]?.id || null;
+  } catch { return null; }
+}
+
+function pollWorkflow(keyword) {
+  let progress = 15;
+  let elapsed = 0;
+
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(async () => {
+    elapsed += 5;
+    progress = Math.min(90, progress + 5);
+    updateProgress(progress);
+
+    if (workflowRunId) {
+      try {
+        const r = await fetch(
+          `https://api.github.com/repos/${GH_USER}/${GH_REPO}/actions/runs/${workflowRunId}`,
+          { headers: GH_HEADERS() }
+        );
+        const run = await r.json();
+        const status = run.status;
+        const conclusion = run.conclusion;
+
+        updateWorkflowDetail("Estado: " + status + (conclusion ? " · " + conclusion : "") + " · " + elapsed + "s transcurridos");
+
+        if (status === "completed") {
+          clearInterval(pollInterval);
+          if (conclusion === "success") {
+            showWorkflowCard("success", "✓ Búsqueda completada", 100);
+            await sleep(1000);
+            await loadResults(keyword);
+          } else {
+            showWorkflowCard("failed", "❌ Error en la búsqueda", 100);
+            document.getElementById('btn-search').disabled = false;
+            document.getElementById('btn-search').textContent = "BUSCAR";
+          }
+          return;
+        }
+      } catch(e) {
+        console.warn("Poll error:", e);
+      }
+    } else {
+      workflowRunId = await getLatestRunId();
+    }
+
+    if (elapsed > 120) {
+      clearInterval(pollInterval);
+      showWorkflowCard("failed", "Timeout — intenta de nuevo", 100);
+      document.getElementById('btn-search').disabled = false;
+      document.getElementById('btn-search').textContent = "BUSCAR";
+    }
+  }, 5000);
+}
+
+async function loadResults(keyword) {
+  try {
+    // Leer resultados_busqueda.json de GitHub
+    const r = await fetch(
+      `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/resultados_busqueda.json`,
+      { headers: GH_HEADERS() }
+    );
+    if (!r.ok) { showStatus("No se encontraron resultados", "err"); return; }
+    const data = await r.json();
+    const content = JSON.parse(atob(data.content.replace(/\n/g, "")));
+
+    products = content.productos || [];
+    renderProducts();
+
+    document.getElementById('results-count').textContent = products.length + " productos para "" + content.keyword + """;
+    document.getElementById('workflow-card').style.display = "none";
+    document.getElementById('btn-search').disabled = false;
+    document.getElementById('btn-search').textContent = "BUSCAR";
+
+    if (products.length === 0) {
+      showStatus("Sin resultados con esos filtros", "info");
+    } else {
+      showStatus("✓ " + products.length + " productos encontrados", "ok");
+    }
+  } catch(e) {
+    showStatus("Error cargando resultados: " + e.message, "err");
+    document.getElementById('btn-search').disabled = false;
+    document.getElementById('btn-search').textContent = "BUSCAR";
+  }
+}
+
+function renderProducts() {
+  const grid = document.getElementById('product-grid');
+  if (!products.length) {
+    grid.innerHTML = '<div class="empty"><div class="empty-icon">😔</div><div>Sin resultados</div></div>';
+    return;
+  }
+  const queueSet = new Set(queueUrls);
+  grid.innerHTML = products.map(p => {
+    const inQueue = queueSet.has(p.link);
+    return `
+    <div class="product-card ${selected.has(p.id) ? 'selected' : ''} ${inQueue ? 'in-queue' : ''}" onclick="toggleSelect('${p.id}')">
+      <img class="product-img" src="${p.imagen}" alt="" loading="lazy" onerror="this.style.background='#222'">
+      <div class="product-info">
+        <div class="product-title">${p.titulo}</div>
+        <div class="product-prices">
+          <span class="price-sale">${p.precio_sale}€</span>
+          <span class="price-orig">${p.precio_orig}€</span>
+          <span class="badge badge-disc">-${p.descuento}%</span>
+          ${inQueue ? '<span class="badge badge-queue">En cola</span>' : ''}
+        </div>
+        <div class="product-meta">${p.rating > 0 ? '⭐ ' + p.rating.toFixed(1) : ''} ${p.ventas > 0 ? '· 📦 ' + p.ventas.toLocaleString() + ' vendidos' : ''}</div>
+      </div>
+      <div class="check-icon">✓</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleSelect(id) {
+  if (selected.has(id)) selected.delete(id);
+  else selected.add(id);
+  renderProducts();
+  const btn = document.getElementById('btn-add-all');
+  if (selected.size > 0) {
+    btn.classList.add('visible');
+    btn.textContent = "➕ Añadir " + selected.size + " producto" + (selected.size > 1 ? "s" : "");
+  } else {
+    btn.classList.remove('visible');
+  }
+}
+
+// ── QUEUE ──
+async function loadQueue() {
+  const token = localStorage.getItem("gh_token");
+  if (!token) return;
+  try {
+    const r = await fetch(
+      `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/cola.txt`,
+      { headers: GH_HEADERS() }
+    );
+    if (!r.ok) { queueUrls = []; updateQueueBadge(); return; }
+    const data = await r.json();
+    const content = atob(data.content.replace(/\n/g, ""));
+    queueUrls = content.split("\n").filter(l => l.trim() && !l.startsWith("#"));
+    updateQueueBadge();
+  } catch { queueUrls = []; }
+}
+
+async function saveQueue() {
+  const r = await fetch(
+    `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/cola.txt`,
+    { headers: GH_HEADERS() }
+  );
+  const data = await r.json();
+  const sha = data.sha;
+  const header = "# Cola MultiChollos\n";
+  const content = header + queueUrls.join("\n") + "\n";
+  const encoded = btoa(unescape(encodeURIComponent(content)));
+  const resp = await fetch(
+    `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/cola.txt`,
+    {
+      method: "PUT",
+      headers: GH_HEADERS(),
+      body: JSON.stringify({ message: "Cola actualizada", content: encoded, sha, branch: "main" })
+    }
+  );
+  if (!resp.ok) throw new Error("GitHub error: " + resp.status);
+}
+
+async function addSelectedToQueue() {
+  if (!selected.size) return;
+  const token = localStorage.getItem("gh_token");
+  if (!token) { showToast("Configura el token primero", "error"); return; }
+
+  const selectedProds = products.filter(p => selected.has(p.id));
+  const queueSet = new Set(queueUrls);
+  const newUrls = selectedProds.map(p => p.link).filter(u => u && !queueSet.has(u));
+
+  if (!newUrls.length) { showToast("Ya están en la cola", ""); return; }
+
+  try {
+    queueUrls.push(...newUrls);
+    await saveQueue();
+    selected.clear();
+    document.getElementById('btn-add-all').classList.remove('visible');
+    renderProducts();
+    updateQueueBadge();
+    showToast("✓ " + newUrls.length + " producto" + (newUrls.length > 1 ? "s" : "") + " añadido" + (newUrls.length > 1 ? "s" : ""), "success");
+  } catch(e) {
+    showToast("Error: " + e.message, "error");
+  }
+}
+
+async function clearQueue() {
+  if (!queueUrls.length || !confirm("¿Vaciar la cola? (" + queueUrls.length + " URLs)")) return;
+  queueUrls = [];
+  try { await saveQueue(); renderQueue(); updateQueueBadge(); showToast("Cola vaciada", ""); }
+  catch(e) { showToast("Error: " + e.message, "error"); }
+}
+
+async function removeFromQueue(idx) {
+  queueUrls.splice(idx, 1);
+  try { await saveQueue(); renderQueue(); updateQueueBadge(); showToast("Eliminado", ""); }
+  catch(e) { showToast("Error: " + e.message, "error"); }
+}
+
+function renderQueue() {
+  const mins = queueUrls.length * 10;
+  document.getElementById('queue-stats').innerHTML =
+    "<strong>" + queueUrls.length + "</strong> productos en cola · ~<strong>" + mins + " min</strong> para publicarse";
+
+  const list = document.getElementById('queue-list');
+  if (!queueUrls.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">🎉</div><div>Cola vacía</div></div>';
+    return;
+  }
+  list.innerHTML = queueUrls.map((url, i) => `
+    <div class="queue-item">
+      <span class="queue-num">${i + 1}</span>
+      <span class="queue-url">${url}</span>
+      <button class="queue-del" onclick="removeFromQueue(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function updateQueueBadge() {
+  document.getElementById('queue-badge').textContent = queueUrls.length ? " (" + queueUrls.length + ")" : "";
+}
+
+// ── SETTINGS ──
+function loadSettings() {
+  document.getElementById('s-ghtoken').value = localStorage.getItem("gh_token") || "";
+}
+
+function saveSettings() {
+  localStorage.setItem("gh_token", document.getElementById('s-ghtoken').value.trim());
+  const st = document.getElementById('settings-status');
+  st.className = 'status-bar visible ok';
+  st.textContent = '✓ Token guardado';
+  setTimeout(() => st.classList.remove('visible'), 2500);
+  loadQueue();
+}
+
+// ── UI HELPERS ──
+function showWorkflowCard(status, text, progress) {
+  const card = document.getElementById('workflow-card');
+  card.style.display = "block";
+  const dot = document.getElementById('wf-dot');
+  dot.className = 'status-dot ' + status;
+  document.getElementById('wf-text').textContent = text;
+  document.getElementById('wf-progress').style.width = progress + "%";
+}
+
+function updateProgress(val) {
+  document.getElementById('wf-progress').style.width = val + "%";
+}
+
+function updateWorkflowDetail(text) {
+  document.getElementById('wf-detail').textContent = text;
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.innerHTML = msg;
+  el.className = 'status-bar' + (msg ? ' visible ' + type : '');
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + (type || '');
+  setTimeout(() => t.className = 'toast', 2500);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>
