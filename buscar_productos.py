@@ -25,6 +25,7 @@ GH_HEADERS = {
     "Authorization": "token " + GH_TOKEN,
     "Accept": "application/vnd.github.v3+json"
 }
+print(">>> Filtros: MIN_PRECIO=" + str(MIN_PRECIO) + " MIN_DESCUENTO=" + str(MIN_DESCUENTO))
 
 def _sign(params, secret):
     sorted_params = sorted(params.items())
