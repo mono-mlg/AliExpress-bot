@@ -8,24 +8,17 @@ GH_TOKEN       = os.environ["GH_TOKEN"]
 GH_USER        = os.environ["GH_USER"]
 GH_REPO        = os.environ["GH_REPO"]
 KEYWORD        = os.environ.get("KEYWORD", "smartwatch")
-try:
-    MIN_DESCUENTO = int(os.environ.get("MIN_DESCUENTO", "0") or "0")
-except:
-    MIN_DESCUENTO = 0
-
-try:
-    MIN_PRECIO = float(os.environ.get("MIN_PRECIO", "0") or "0")
-except:
-    MIN_PRECIO = 0.0
+MIN_DESCUENTO  = int(os.environ.get("MIN_DESCUENTO", "20"))
+MIN_PRECIO     = float(os.environ.get("MIN_PRECIO", "5"))
 MAX_RESULTADOS = int(os.environ.get("MAX_RESULTADOS", "30"))
 SORT           = os.environ.get("SORT", "LAST_VOLUME_DESC")
+METODO         = os.environ.get("METODO", "standard")
 ALI_API_URL    = "https://api-sg.aliexpress.com/sync"
 
 GH_HEADERS = {
     "Authorization": "token " + GH_TOKEN,
     "Accept": "application/vnd.github.v3+json"
 }
-print(">>> Filtros: MIN_PRECIO=" + str(MIN_PRECIO) + " MIN_DESCUENTO=" + str(MIN_DESCUENTO))
 
 def _sign(params, secret):
     sorted_params = sorted(params.items())
@@ -56,11 +49,10 @@ def obtener_tipo_cambio():
 
 def buscar():
     tasa = obtener_tipo_cambio()
-    print(">>> Buscando: " + KEYWORD + " | tasa CNY->EUR: " + str(tasa))
+    print(">>> Buscando: " + KEYWORD + " | metodo: " + METODO)
     productos = []
     paginas_probadas = set()
     intentos = 0
-    diagnostico_hecho = False
 
     while len(productos) < MAX_RESULTADOS and intentos < 10:
         pagina = random.randint(1, 20)
@@ -69,21 +61,32 @@ def buscar():
         paginas_probadas.add(pagina)
         intentos += 1
         try:
-            data = ali_request("aliexpress.affiliate.hotproduct.query", {
-                "tracking_id":     TRACKING_ID,
-                "keywords":        KEYWORD,
-                "page_no":         str(pagina),
-                "page_size":       "50",
-                "sort":            SORT,
-                "ship_to_country": "ES",
-                "fields":          "product_id,product_title,product_main_image_url,sale_price,original_price,promotion_link,evaluate_rate,volume",
-            })
-            raw = (data["aliexpress_affiliate_hotproduct_query_response"]
-                       ["resp_result"]["result"]["products"]["product"])
-            print("    Pagina " + str(pagina) + " — " + str(len(raw)) + " productos")
-            for p in raw[:2]:
-                print("    PRECIO raw: orig=" + str(p.get("original_price","?")) + " sale=" + str(p.get("sale_price","?")) + " | " + p.get("product_title","")[:35])
+            if METODO == "hotproduct":
+                data = ali_request("aliexpress.affiliate.hotproduct.query", {
+                    "tracking_id":     TRACKING_ID,
+                    "keywords":        KEYWORD,
+                    "page_no":         str(pagina),
+                    "page_size":       "50",
+                    "sort":            SORT,
+                    "ship_to_country": "ES",
+                    "fields":          "product_id,product_title,product_main_image_url,sale_price,original_price,promotion_link,evaluate_rate,volume",
+                })
+                raw = (data["aliexpress_affiliate_hotproduct_query_response"]
+                           ["resp_result"]["result"]["products"]["product"])
+            else:
+                data = ali_request("aliexpress.affiliate.product.query", {
+                    "tracking_id":     TRACKING_ID,
+                    "keywords":        KEYWORD,
+                    "page_no":         str(pagina),
+                    "page_size":       "50",
+                    "sort":            SORT,
+                    "ship_to_country": "ES",
+                    "fields":          "product_id,product_title,product_main_image_url,sale_price,original_price,promotion_link,evaluate_rate,volume",
+                })
+                raw = (data["aliexpress_affiliate_product_query_response"]
+                           ["resp_result"]["result"]["products"]["product"])
 
+            print("    Pagina " + str(pagina) + " — " + str(len(raw)) + " productos")
 
             for p in raw:
                 try:
@@ -101,15 +104,14 @@ def buscar():
                         "precio_orig": precio_orig,
                         "precio_sale": precio_sale,
                         "descuento":   descuento,
-                        "rating":      float(p.get("evaluate_rate","0")),
+                        "rating":      float(str(p.get("evaluate_rate","0")).replace("%","")), 
                         "ventas":      int(p.get("volume","0")),
                         "link":        p.get("promotion_link",""),
                     })
-                except Exception as ex:
-                    print("    ERROR producto: " + str(ex))
+                except:
                     continue
         except (KeyError, TypeError) as e:
-            print("    Error: " + str(e))
+            print("    Error pagina " + str(pagina) + ": " + str(e))
         time.sleep(0.5)
 
     vistos = set()
@@ -119,8 +121,8 @@ def buscar():
             vistos.add(p["id"])
             unicos.append(p)
     unicos.sort(key=lambda x: x["descuento"], reverse=True)
-    print("    Productos antes de dedup: " + str(len(productos)) + " | despues: " + str(len(unicos)))
     return unicos[:MAX_RESULTADOS], tasa
+
 
 def guardar_resultados(productos, tasa):
     resultado = {
