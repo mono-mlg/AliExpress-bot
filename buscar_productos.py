@@ -73,6 +73,8 @@ def buscar():
             raw = (data["aliexpress_affiliate_hotproduct_query_response"]
                        ["resp_result"]["result"]["products"]["product"])
             print("    Pagina " + str(pagina) + " — " + str(len(raw)) + " productos")
+            for p in raw[:2]:
+                print("    PRECIO raw: orig=" + str(p.get("original_price","?")) + " sale=" + str(p.get("sale_price","?")) + " | " + p.get("product_title","")[:35])
 
 
             for p in raw:
