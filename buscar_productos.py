@@ -105,7 +105,8 @@ def buscar():
                         "ventas":      int(p.get("volume","0")),
                         "link":        p.get("promotion_link",""),
                     })
-                except:
+                except Exception as ex:
+                    print("    ERROR producto: " + str(ex))
                     continue
         except (KeyError, TypeError) as e:
             print("    Error: " + str(e))
