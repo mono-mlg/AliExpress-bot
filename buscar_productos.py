@@ -8,8 +8,15 @@ GH_TOKEN       = os.environ["GH_TOKEN"]
 GH_USER        = os.environ["GH_USER"]
 GH_REPO        = os.environ["GH_REPO"]
 KEYWORD        = os.environ.get("KEYWORD", "smartwatch")
-MIN_DESCUENTO  = int(os.environ.get("MIN_DESCUENTO", "20"))
-MIN_PRECIO     = float(os.environ.get("MIN_PRECIO", "5"))
+try:
+    MIN_DESCUENTO = int(os.environ.get("MIN_DESCUENTO", "0") or "0")
+except:
+    MIN_DESCUENTO = 0
+
+try:
+    MIN_PRECIO = float(os.environ.get("MIN_PRECIO", "0") or "0")
+except:
+    MIN_PRECIO = 0.0
 MAX_RESULTADOS = int(os.environ.get("MAX_RESULTADOS", "30"))
 SORT           = os.environ.get("SORT", "LAST_VOLUME_DESC")
 ALI_API_URL    = "https://api-sg.aliexpress.com/sync"
