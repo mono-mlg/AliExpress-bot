@@ -110,6 +110,7 @@ def buscar():
             vistos.add(p["id"])
             unicos.append(p)
     unicos.sort(key=lambda x: x["descuento"], reverse=True)
+    print("    Productos antes de dedup: " + str(len(productos)) + " | despues: " + str(len(unicos)))
     return unicos[:MAX_RESULTADOS], tasa
 
 def guardar_resultados(productos, tasa):
