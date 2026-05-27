@@ -26,20 +26,31 @@ def _sign(params, secret):
     base = secret + "".join(k + str(v) for k, v in sorted_params) + secret
     return hashlib.md5(base.encode("utf-8")).hexdigest().upper()
 
-def ali_request(method, extra):
-    params = {
-        "method":      method,
-        "app_key":     APP_KEY,
-        "timestamp":   str(int(time.time() * 1000)),
-        "sign_method": "md5",
-        "format":      "json",
-        "v":           "2.0",
-    }
-    params.update(extra)
-    params["sign"] = _sign(params, APP_SECRET)
-    r = requests.post(ALI_API_URL, data=params, timeout=20)
-    r.raise_for_status()
-    return r.json()
+def ali_request(method, extra, reintentos=3):
+    time.sleep(1.2)  # Respetar rate limit de la API (max ~50 req/min)
+    data = {}
+    for intento in range(reintentos):
+        params = {
+            "method":      method,
+            "app_key":     APP_KEY,
+            "timestamp":   str(int(time.time() * 1000)),
+            "sign_method": "md5",
+            "format":      "json",
+            "v":           "2.0",
+        }
+        params.update(extra)
+        params["sign"] = _sign(params, APP_SECRET)
+        r = requests.post(ALI_API_URL, data=params, timeout=20)
+        r.raise_for_status()
+        data = r.json()
+        # Reintento automático si la API sigue con rate limit
+        if "error_response" in data and data["error_response"].get("code") == "ApiCallLimit":
+            espera = 2 * (intento + 1)
+            print("    Rate limit — reintentando en " + str(espera) + "s (intento " + str(intento + 1) + "/" + str(reintentos) + ")")
+            time.sleep(espera)
+            continue
+        return data
+    return data  # Devolver último resultado aunque siga fallando
 
 # ─────────────────────────────────────────
 #  TIPO DE CAMBIO CNY -> EUR
